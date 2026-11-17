@@ -1,4 +1,4 @@
-import { h, api, init, toast, askText, confirmBox, openDialog, folderTree, folderSelect, descendantIds } from './common.js';
+import { h, api, init, toast, askText, confirmBox, openDialog, folderTree, folderSelect, descendantIds, renameFolderDialog, deleteFolderDialog } from './common.js';
 
 const boot = await init('folders', 'จัดการโฟลเดอร์');
 document.querySelector('main').removeAttribute('aria-busy');
@@ -58,9 +58,7 @@ $('create').addEventListener('click', async () => {
 });
 $('n-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('create').click(); });
 
-function rename(f) {
-  askText({ title: 'เปลี่ยนชื่อโฟลเดอร์', label: 'ชื่อใหม่', value: f.name, onOk: async (name) => { await api('PATCH', `/api/folders/${f.id}`, { name }); await reload(); toast('เปลี่ยนชื่อแล้ว'); return true; } });
-}
+function rename(f) { renameFolderDialog(f, reload); }
 function move(f) {
   const sel = folderSelect(folders, { value: f.parent_id, exclude: descendantIds(folders, f.id), id: 'mvf' });
   openDialog(`ย้าย "${f.name}"`, [h('div', { class: 'field' }, h('label', { for: 'mvf', text: 'ย้ายไปไว้ภายใต้' }), sel)], {
@@ -68,14 +66,7 @@ function move(f) {
     onOk: async () => { await api('PATCH', `/api/folders/${f.id}`, { parent_id: sel.value }); await reload(); toast('ย้ายโฟลเดอร์แล้ว'); return true; },
   });
 }
-function remove(f) {
-  confirmBox(`ลบโฟลเดอร์ "${f.name}"? (ลบได้เฉพาะโฟลเดอร์ที่ว่าง ระบบจะย้ายไปถังขยะของที่เก็บไฟล์)`, 'ลบโฟลเดอร์', true, async () => {
-    await api('DELETE', `/api/folders/${f.id}`);
-    await reload();
-    toast('ลบโฟลเดอร์แล้ว');
-    return true;
-  });
-}
+function remove(f) { deleteFolderDialog(f, folders, reload); }
 
 if (isAdmin) {
   $('syncSheet').hidden = false;

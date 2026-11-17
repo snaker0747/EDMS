@@ -1,4 +1,4 @@
-import { h, api, init, toast, askText, folderTree, descendantIds, fmtSize, fmtUploadDate, extBadge, highlight, initials, svgIcon, ICON, driveFolderUrl, qs } from './common.js';
+import { h, api, init, toast, askText, confirmBox, renameFolderDialog, deleteFolderDialog, folderTree, descendantIds, fmtSize, fmtUploadDate, extBadge, highlight, initials, svgIcon, ICON, driveFolderUrl, qs } from './common.js';
 
 // ขอรายการเอกสารพร้อมกับข้อมูลเริ่มต้น ไม่ต้องรอกันทีละอย่าง
 const docsReq = api('GET', '/api/documents');
@@ -46,6 +46,9 @@ function renderHead() {
   const link = $('driveLink');
   link.hidden = !(f && isAdmin);
   if (f) link.href = driveFolderUrl(f.id);
+  const manage = !!(f && isAdmin && f.id !== boot.root_id);
+  $('renFolder').hidden = !manage;
+  $('delFolder').hidden = !manage;
   $('upBtn').href = current ? `/upload.html?folder=${encodeURIComponent(current)}` : '/upload.html';
 }
 
@@ -130,6 +133,52 @@ function scopeDocs() {
   return docs.filter((d) => ids.has(d.folder_id));
 }
 
+const canEditDoc = (d) => isAdmin || d.uploader === boot.me.display_name;
+const iconBtn = (icon, label, onclick, danger = false) =>
+  h('button', { class: `iconbtn${danger ? ' danger' : ''}`, type: 'button', title: label, 'aria-label': label, onclick }, svgIcon(icon, 18));
+
+function renameDoc(d) {
+  askText({
+    title: 'เปลี่ยนชื่อไฟล์',
+    label: 'ชื่อเอกสาร (ชื่อไฟล์ในที่เก็บไฟล์จะเปลี่ยนตาม)',
+    value: d.title,
+    onOk: async (title) => {
+      const r = await api('PATCH', `/api/documents/${encodeURIComponent(d.id)}`, { title });
+      docs = docs.map((x) => (x.id === d.id ? r.document : x));
+      render();
+      toast('เปลี่ยนชื่อแล้ว');
+      return true;
+    },
+  });
+}
+function deleteDoc(d) {
+  confirmBox(`ลบเอกสาร "${d.title}"? (ย้ายไปถังขยะ ผู้ดูแลระบบกู้คืนได้ภายใน 30 วัน)`, 'ลบเอกสาร', true, async () => {
+    await api('DELETE', `/api/documents/${encodeURIComponent(d.id)}`);
+    docs = docs.filter((x) => x.id !== d.id);
+    folders = folders.map((f) => (f.id === d.folder_id ? { ...f, doc_count: Math.max(0, (f.doc_count || 0) - 1) } : f));
+    renderTree();
+    render();
+    toast('ลบเอกสารแล้ว');
+    return true;
+  });
+}
+
+// โหลดโฟลเดอร์/เอกสารใหม่จากเซิร์ฟเวอร์หลังเปลี่ยนชื่อหรือลบโฟลเดอร์
+async function reloadAll() {
+  const [b, d] = await Promise.all([api('GET', '/api/bootstrap'), api('GET', '/api/documents')]);
+  folders = b.folders;
+  docs = d.documents;
+  seenVersion = b.data_version;
+  if (current && !folders.some((f) => f.id === current)) current = '';
+  history.replaceState(null, '', current ? `/?folder=${encodeURIComponent(current)}` : '/');
+  renderFilters();
+  renderTree();
+  renderHead();
+  render();
+}
+$('renFolder').addEventListener('click', () => { const f = folders.find((x) => x.id === current); if (f) renameFolderDialog(f, reloadAll); });
+$('delFolder').addEventListener('click', () => { const f = folders.find((x) => x.id === current); if (f) deleteFolderDialog(f, folders, reloadAll); });
+
 function renderTypeChips() {
   const box = $('tchips');
   const sc = scopeDocs();
@@ -152,7 +201,7 @@ function render() {
   $('count').replaceChildren('พบ ', h('b', { text: String(list.length) }), ' รายการ');
   const q = $('q').value;
   const t = $('tbl');
-  t.replaceChildren(h('div', { class: 'tr head' }, ...['ชื่อเอกสาร', 'เลขที่', 'ประเภท', 'ขนาด', 'ผู้อัปโหลด', 'วันที่อัปโหลด'].map((x) => h('div', { text: x }))));
+  t.replaceChildren(h('div', { class: 'tr head' }, ...['ชื่อเอกสาร', 'เลขที่', 'ประเภท', 'ขนาด', 'ผู้อัปโหลด', 'วันที่อัปโหลด', ''].map((x) => h('div', { text: x }))));
   if (!list.length) t.append(emptyState());
   for (const d of list.slice(0, shown)) {
     t.append(
@@ -162,7 +211,11 @@ function render() {
         h('div', { class: 'c-type' }, d.doc_type ? h('span', { class: 'tag', text: d.doc_type }) : NA()),
         h('div', { class: 'c-size mono', text: fmtSize(d.size) }),
         h('div', { class: 'c-by who2' }, h('span', { class: 'ini', 'aria-hidden': 'true', text: initials(d.uploader) }), h('span', { text: d.uploader, title: d.uploader })),
-        h('div', { class: 'c-date sub', text: fmtUploadDate(d.uploaded_at) })
+        h('div', { class: 'c-date sub', text: fmtUploadDate(d.uploaded_at) }),
+        h('div', { class: 'c-act' }, ...(canEditDoc(d) ? [
+          iconBtn(ICON.edit, `เปลี่ยนชื่อไฟล์ ${d.title}`, () => renameDoc(d)),
+          iconBtn(ICON.trash, `ลบ ${d.title}`, () => deleteDoc(d), true),
+        ] : []))
       )
     );
   }

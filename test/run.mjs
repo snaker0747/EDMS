@@ -205,6 +205,14 @@ const somchaiDoc = r.data.document;
 step('ผู้ใช้ทั่วไปแก้เอกสารของคนอื่นไม่ได้ แต่แก้ของตัวเองได้');
 ok(await call('PATCH', `/api/documents/${doc.id}`, { body: { note: 'แก้ไม่ได้' } }), 403);
 ok(await call('PATCH', `/api/documents/${somchaiDoc.id}`, { body: { note: 'แก้ได้' } }));
+// เจ้าของเอกสารลบ/เปลี่ยนชื่อของตัวเองได้ แต่ลบของคนอื่นไม่ได้
+r = await call('POST', '/api/documents', { form: uploadForm({ ...goodMeta, title: 'ไฟล์ที่สมชายจะลบเอง' }) }); ok(r, 201);
+const mine = r.data.document;
+ok(await call('PATCH', `/api/documents/${mine.id}`, { body: { title: 'ชื่อใหม่ของสมชาย' } }));
+assert.equal(mock.files.get(mine.id).name, 'ชื่อใหม่ของสมชาย.pdf');
+ok(await call('DELETE', `/api/documents/${mine.id}`));
+assert.equal(mock.files.get(mine.id).trashed, true);
+ok(await call('DELETE', `/api/documents/${doc.id}`), 403);
 step('เปลี่ยนรหัสผ่านตนเอง');
 ok(await call('POST', '/api/me/password', { body: { current: 'ผิด', next: 'NewPassw0rd!' } }), 400);
 ok(await call('POST', '/api/me/password', { body: { current: 'Somchai#2570', next: 'NewPassw0rd!' } }));
@@ -243,6 +251,23 @@ const empty = r.data.folders.find((f) => f.name === 'โฟลเดอร์ข
 ok(await call('DELETE', `/api/folders/${empty.id}`));
 r = await call('GET', '/api/folders');
 assert.ok(!r.data.folders.some((f) => f.id === empty.id));
+
+step('ลบโฟลเดอร์ที่มีเอกสารและโฟลเดอร์ย่อย: ปกติ 409, ใส่ force = ลบทั้งหมดลงถังขยะ');
+r = await call('POST', '/api/folders', { body: { name: 'โฟลเดอร์ที่จะลบทั้งชุด', parent_id: 'ROOT' } }); ok(r, 201);
+const big = r.data.folder;
+r = await call('POST', '/api/folders', { body: { name: 'ย่อย', parent_id: big.id } }); ok(r, 201);
+const bigSub = r.data.folder;
+r = await call('POST', '/api/documents', { form: uploadForm({ ...goodMeta, title: 'เอกสารในโฟลเดอร์ที่จะลบ', folder_id: bigSub.id }) }); ok(r, 201);
+const inBig = r.data.document;
+ok(await call('DELETE', `/api/folders/${big.id}`), 409);
+ok(await call('DELETE', `/api/folders/${bigSub.id}`), 409);
+r = await call('DELETE', `/api/folders/${big.id}?force=1`); ok(r);
+assert.equal(r.data.folders_deleted, 2);
+assert.equal(r.data.documents_deleted, 1);
+assert.equal(mock.files.get(big.id).trashed, true);
+r = await call('GET', '/api/folders');
+assert.ok(!r.data.folders.some((f) => f.id === big.id || f.id === bigSub.id));
+ok(await call('GET', `/api/documents/${inBig.id}`), 404);
 
 step('ซิงก์จาก Drive: ไฟล์ที่เพิ่มใน Drive โดยตรงเข้ามาในระบบ');
 mock.files.set('NEWPDF', { id: 'NEWPDF', name: 'ใบเสนอราคา.pdf', mimeType: 'application/pdf', parents: ['ROOT'], bytes: new ArrayBuffer(10), createdTime: '2026-11-16T01:00:00Z', modifiedTime: '2026-11-16T01:00:00Z', trashed: false });

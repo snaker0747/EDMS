@@ -52,6 +52,8 @@ export const ICON = {
   chart: ['M4 20V10', 'M10 20V4', 'M16 20v-7', 'M22 20H2'],
   clock: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3 2'],
   drive: ['M4 15h16v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z', 'M4 15l3-9h10l3 9', 'M8 17.5h.01'],
+  edit: ['M4 20h4L19 9l-4-4L4 16z', 'M13.5 6.5l4 4'],
+  trash: ['M4 7h16', 'M9 7V4h6v3', 'M6 7l1 13h10l1-13', 'M10 11v5', 'M14 11v5'],
   files: ['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z', 'M14 3v5h5'],
 };
 
@@ -399,4 +401,33 @@ export function initials(name) {
   const first = [...parts[0]][0];
   if (/[\u0E00-\u0E7F]/.test(first)) return first;
   return (first + ([...(parts[1] || '')][0] || '')).toUpperCase();
+}
+
+// ---------- การเปลี่ยนชื่อ/ลบโฟลเดอร์ (ใช้ร่วมกันหลายหน้า) ----------
+export function renameFolderDialog(f, after) {
+  askText({
+    title: 'เปลี่ยนชื่อโฟลเดอร์',
+    label: 'ชื่อใหม่ (ชื่อโฟลเดอร์ในที่เก็บไฟล์จะเปลี่ยนตาม)',
+    value: f.name,
+    onOk: async (name) => {
+      await api('PATCH', `/api/folders/${f.id}`, { name });
+      toast('เปลี่ยนชื่อโฟลเดอร์แล้ว');
+      await after?.(name);
+      return true;
+    },
+  });
+}
+
+// ลบโฟลเดอร์: บอกจำนวนโฟลเดอร์ย่อยและเอกสารที่จะถูกลบไปด้วยก่อนยืนยัน
+export function deleteFolderDialog(f, folders, after) {
+  const ids = descendantIds(folders, f.id);
+  const subs = ids.size - 1;
+  const docs = folders.filter((x) => ids.has(x.id)).reduce((a, x) => a + (x.doc_count || 0), 0);
+  const inside = subs || docs ? ` พร้อมโฟลเดอร์ย่อย ${subs} โฟลเดอร์ และเอกสารข้างในทั้งหมด ${docs} รายการ` : '';
+  confirmBox(`ลบโฟลเดอร์ "${f.name}"${inside}? (ย้ายไปถังขยะ ผู้ดูแลระบบกู้คืนได้ภายใน 30 วัน)`, 'ลบโฟลเดอร์', true, async () => {
+    await api('DELETE', `/api/folders/${f.id}?force=1`);
+    toast('ลบโฟลเดอร์แล้ว');
+    await after?.();
+    return true;
+  });
 }

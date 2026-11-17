@@ -160,6 +160,7 @@ export async function replaceDoc(c, { id }, request) {
 
 export async function trashDoc(c, { id }) {
   const doc = await activeDoc(c, id);
+  if (!canEdit(c, doc)) throw new HttpError(403, 'ลบได้เฉพาะเอกสารที่ตนเองอัปโหลด');
   await G.drivePatch(c.env, id, { trashed: true });
   await updateRow(c, 'docs', doc, { status: 'trashed', updated_at: nowIso() });
   logHistory(c, 'ย้ายไปถังขยะ', id, doc.title);

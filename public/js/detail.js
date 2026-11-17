@@ -70,11 +70,11 @@ function render() {
   if (canEdit) {
     btns.push(
       h('button', { class: 'btn', type: 'button', text: 'ย้ายโฟลเดอร์', onclick: moveDialog }),
-      h('button', { class: 'btn', type: 'button', text: 'เปลี่ยนชื่อ', onclick: renameDialog }),
+      h('button', { class: 'btn', type: 'button', text: 'เปลี่ยนชื่อไฟล์', onclick: renameDialog }),
       h('button', { class: 'btn', type: 'button', text: 'อัปโหลดฉบับแก้ไข', onclick: () => $('replaceIn').click() })
     );
   }
-  if (isAdmin) btns.push(h('button', { class: 'btn danger', type: 'button', text: 'ย้ายไปถังขยะ', onclick: trashDialog }));
+  if (canEdit) btns.push(h('button', { class: 'btn danger', type: 'button', text: 'ลบเอกสาร', onclick: trashDialog }));
   $('manageBtns').replaceChildren(...btns);
   $('manage').hidden = !btns.length;
 }
@@ -120,7 +120,7 @@ $('edit').addEventListener('click', () => {
 
 function renameDialog() {
   askText({
-    title: 'เปลี่ยนชื่อเอกสาร',
+    title: 'เปลี่ยนชื่อไฟล์',
     label: 'ชื่อเอกสาร (ชื่อไฟล์ในที่เก็บไฟล์จะเปลี่ยนตาม)',
     value: doc.title,
     onOk: async (name) => {
@@ -150,7 +150,7 @@ function moveDialog() {
 }
 
 function trashDialog() {
-  confirmBox(`ย้าย "${doc.title}" ไปถังขยะ? (กู้คืนได้จากถังขยะของที่เก็บไฟล์ ภายใน 30 วัน)`, 'ย้ายไปถังขยะ', true, async () => {
+  confirmBox(`ลบเอกสาร "${doc.title}"? (ย้ายไปถังขยะ ผู้ดูแลระบบกู้คืนได้ภายใน 30 วัน)`, 'ลบเอกสาร', true, async () => {
     await api('DELETE', `/api/documents/${encodeURIComponent(id)}`);
     location.href = '/';
     return true;

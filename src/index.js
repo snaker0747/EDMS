@@ -43,7 +43,7 @@ add('GET', '/api/documents', 'user', Docs.listDocs);
 add('POST', '/api/documents', 'user', Docs.createDoc);
 add('GET', '/api/documents/:id', 'user', Docs.getDoc);
 add('PATCH', '/api/documents/:id', 'user', Docs.updateDoc);
-add('DELETE', '/api/documents/:id', 'admin', Docs.trashDoc);
+add('DELETE', '/api/documents/:id', 'user', Docs.trashDoc); // เจ้าของเอกสารหรือผู้ดูแลเท่านั้น (ตรวจใน handler)
 add('POST', '/api/documents/:id/move', 'user', Docs.moveDoc);
 add('POST', '/api/documents/:id/replace', 'user', Docs.replaceDoc);
 add('GET', '/api/documents/:id/history', 'user', Docs.docHistory);

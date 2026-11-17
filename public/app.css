@@ -151,7 +151,7 @@ mark{background:#FFE8A3;color:inherit;border-radius:4px;padding:0 1px}
 /* ตาราง/รายการ */
 .tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh1)}
 .tbl{min-width:900px}
-.tr{display:grid;grid-template-columns:minmax(0,2.6fr) 140px 150px 90px 170px 130px;gap:12px;align-items:center;padding:0 20px;min-height:64px;border-bottom:1px solid var(--border);transition:background .12s}
+.tr{display:grid;grid-template-columns:minmax(0,2.6fr) 140px 150px 90px 170px 130px 84px;gap:12px;align-items:center;padding:0 20px;min-height:64px;border-bottom:1px solid var(--border);transition:background .12s}
 .tr:last-child{border-bottom:0}
 .tr:not(.head):hover{background:var(--lav2)}
 .tr:not(.head){animation:rise .3s var(--ease) both}
@@ -262,7 +262,7 @@ dialog .acts{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
   .kpis{grid-template-columns:1fr 1fr;gap:10px}
   .kpi{padding:16px;border-radius:20px}.kpi .val{font-size:26px}
   .tbl{min-width:0}
-  .tr{grid-template-columns:minmax(0,1fr) 92px;padding:8px 14px}
+  .tr{grid-template-columns:minmax(0,1fr) 92px 76px;padding:8px 14px}
   .tr>.c-no,.tr>.c-type,.tr>.c-by,.tr>.c-size{display:none}
   .tr.head{display:none}
   .viewer iframe{height:70vh;min-height:360px}
@@ -296,3 +296,9 @@ dialog .acts{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 .rt{flex:1;min-width:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rb{flex:none;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rd{flex:none}
 @media (max-width:760px){.rb{display:none}.vbars{gap:3px}.vb .vl{font-size:10.5px}}
+
+/* ปุ่มไอคอนในแถวเอกสาร */
+.c-act{display:flex;justify-content:flex-end;gap:4px}
+.iconbtn{width:36px;height:36px;border-radius:50%;border:0;background:transparent;color:var(--text2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,color .12s}
+.iconbtn:hover,.iconbtn:focus-visible{background:var(--brand-soft);color:var(--brand)}
+.iconbtn.danger:hover,.iconbtn.danger:focus-visible{background:var(--danger-soft);color:var(--danger)}

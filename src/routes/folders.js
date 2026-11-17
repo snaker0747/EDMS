@@ -81,17 +81,30 @@ export async function updateFolder(c, { id }, request) {
   return json({ ok: true });
 }
 
-export async function deleteFolder(c, { id }) {
+// ลบโฟลเดอร์: ค่าเริ่มต้นลบได้เฉพาะโฟลเดอร์ว่าง; ใส่ ?force=1 เพื่อลบพร้อมโฟลเดอร์ย่อยและเอกสารทั้งหมดข้างใน
+// (ทั้งหมดไปอยู่ในถังขยะของที่เก็บไฟล์ ผู้ดูแลกู้คืนได้ภายใน 30 วัน)
+export async function deleteFolder(c, { id }, request) {
   if (id === c.env.ROOT_FOLDER_ID) throw new HttpError(400, 'ไม่สามารถลบโฟลเดอร์หลักได้');
+  const force = new URL(request.url).searchParams.get('force') === '1';
   const folders = await getFolders(c);
   const cur = folders.find((f) => f.id === id);
   if (!cur) throw new HttpError(404, 'ไม่พบโฟลเดอร์');
-  if (folders.some((f) => f.parent_id === id)) throw new HttpError(409, 'ลบไม่ได้ เพราะยังมีโฟลเดอร์ย่อยอยู่ข้างใน');
-  const docs = (await listRows(c, 'docs')).filter((d) => d.folder_id === id && d.status !== 'trashed');
-  if (docs.length) throw new HttpError(409, `ลบไม่ได้ เพราะยังมีเอกสาร ${docs.length} รายการอยู่ข้างใน`);
-  await G.drivePatch(c.env, id, { trashed: true });
-  const row = (await listRows(c, 'folders')).find((r) => r.id === id);
-  await updateRow(c, 'folders', row, { status: 'deleted' });
-  logHistory(c, 'ลบโฟลเดอร์', id, cur.name);
-  return json({ ok: true });
+  // รวมโฟลเดอร์นี้และโฟลเดอร์ย่อยทุกชั้น
+  const ids = new Set([id]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const f of folders) if (!ids.has(f.id) && ids.has(f.parent_id)) { ids.add(f.id); grew = true; }
+  }
+  const docs = (await listRows(c, 'docs')).filter((d) => ids.has(d.folder_id) && d.status !== 'trashed');
+  if (!force) {
+    if (ids.size > 1) throw new HttpError(409, 'ลบไม่ได้ เพราะยังมีโฟลเดอร์ย่อยอยู่ข้างใน');
+    if (docs.length) throw new HttpError(409, `ลบไม่ได้ เพราะยังมีเอกสาร ${docs.length} รายการอยู่ข้างใน`);
+  }
+  await G.drivePatch(c.env, id, { trashed: true }); // ไฟล์และโฟลเดอร์ย่อยไปอยู่ในถังขยะพร้อมกัน
+  const now = nowIso();
+  for (const d of docs) await updateRow(c, 'docs', d, { status: 'trashed', updated_at: now });
+  const rows = await listRows(c, 'folders');
+  for (const r of rows) if (ids.has(r.id)) await updateRow(c, 'folders', r, { status: 'deleted' });
+  logHistory(c, 'ลบโฟลเดอร์', id, cur.name, ids.size > 1 || docs.length ? `พร้อมโฟลเดอร์ย่อย ${ids.size - 1} และเอกสาร ${docs.length} รายการ` : '');
+  return json({ ok: true, folders_deleted: ids.size, documents_deleted: docs.length });
 }

@@ -175,6 +175,36 @@ await shot(m.page, '13-mobile-detail');
 const pdfDoc = [...mock.files.values()].find((f) => f.name === 'เอกสารจากกล้อง.pdf');
 console.log('camera pdf in Drive:', !!pdfDoc, pdfDoc && new TextDecoder().decode(pdfDoc.bytes.slice(0, 8)), pdfDoc?.bytes.byteLength);
 
+// ---- แก้ชื่อ/ลบ ไฟล์และโฟลเดอร์ จากหน้าคลัง (เดสก์ท็อป) ----
+await page.goto(url + '/');
+await page.waitForSelector('#tbl .tr:not(.head)');
+const before = await page.locator('#tbl .tr:not(.head)').count();
+await page.locator('#tbl .tr:not(.head) .iconbtn >> nth=0').click(); // เปลี่ยนชื่อไฟล์แถวแรก
+await page.fill('#ask-in', 'ชื่อที่เปลี่ยนจากหน้ารายการ');
+await page.click('dialog button[type=submit]');
+await page.waitForSelector('dialog', { state: 'detached' });
+console.log('renamed row:', await page.locator('#tbl .tr:not(.head) .nm .t', { hasText: 'ชื่อที่เปลี่ยนจากหน้ารายการ' }).count());
+await shot(page, '14-library-actions');
+await page.locator('#tbl .tr:not(.head) .iconbtn.danger >> nth=0').click(); // ลบแถวแรก
+await shot(page, '15-delete-confirm');
+await page.click('dialog button[type=submit]');
+await page.waitForSelector('dialog', { state: 'detached' });
+console.log('rows before/after delete:', before, await page.locator('#tbl .tr:not(.head)').count());
+// โฟลเดอร์: สร้าง → เปลี่ยนชื่อ → ลบ จากหัวหน้าคลัง
+await page.click('#newFolder');
+await page.fill('dialog input', 'โฟลเดอร์ทดสอบลบ');
+await page.click('dialog button[type=submit]');
+await page.waitForSelector('dialog', { state: 'detached' });
+await page.click('#renFolder');
+await page.fill('#ask-in', 'โฟลเดอร์ชื่อใหม่');
+await page.click('dialog button[type=submit]');
+await page.waitForSelector('dialog', { state: 'detached' });
+console.log('folder renamed h1:', await page.textContent('#h1'));
+await page.click('#delFolder');
+await page.click('dialog button[type=submit]');
+await page.waitForSelector('dialog', { state: 'detached' });
+console.log('after folder delete h1:', await page.textContent('#h1'), '| in tree:', await page.locator('#tree .fbtn', { hasText: 'โฟลเดอร์ชื่อใหม่' }).count());
+
 console.log('\nปัญหาในคอนโซล:', problems.length ? '\n' + problems.join('\n') : 'ไม่มี');
 await browser.close();
 server.close();
