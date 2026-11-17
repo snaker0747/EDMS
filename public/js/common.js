@@ -1,7 +1,7 @@
 // ตัวช่วยร่วมของทุกหน้า: เรียก API, หัวเว็บ/แบนเนอร์, ฟอร์มรายละเอียด, กล่องโต้ตอบ
 export const SYSTEM_NAME = 'ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์';
 export const SYSTEM_EN = 'E-Document Management System';
-export const UNIT_NAME = 'ส่วนการโยธา ฝ่ายสาธารณูปโภค สำนักช่าง เทศบาลนครระยอง';
+export const UNIT_NAME = 'ส่วนการโยธา สำนักช่าง เทศบาลนครระยอง';
 
 // สร้างองค์ประกอบ DOM (ไม่ใช้ innerHTML เพื่อกัน XSS)
 export function h(tag, attrs, ...kids) {
