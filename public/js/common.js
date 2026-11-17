@@ -329,6 +329,9 @@ export function detailsForm(boot, initial = {}, { withTitle = false } = {}) {
 // ---------- หัวเว็บ + แบนเนอร์ ----------
 export async function init(active, pageTitle) {
   document.title = `${pageTitle} | ${SYSTEM_NAME} ${UNIT_NAME}`;
+  // แสดงแถบบนพร้อมชื่อระบบทันที ไม่ต้องรอข้อมูลจากเซิร์ฟเวอร์ (เมนูและชื่อผู้ใช้ตามมาทีหลัง)
+  const early = h('header', { class: 'top' }, h('div', { class: 'topin' }, bannerEl()));
+  document.getElementById('top').replaceWith(early);
   const boot = await api('GET', '/api/bootstrap');
   const me = boot.me;
   const nav = [
@@ -355,7 +358,7 @@ export async function init(active, pageTitle) {
 
   const navEl = h('nav', { class: 'nav', 'aria-label': 'เมนูหลัก' }, nav.map(([k, href, label]) => h('a', { href, text: label, 'aria-current': k === active ? 'page' : false })));
   const top = h('header', { class: 'top' }, h('div', { class: 'topin' }, bannerEl(), navEl, menu));
-  document.getElementById('top').replaceWith(top);
+  early.replaceWith(top);
   return boot;
 }
 

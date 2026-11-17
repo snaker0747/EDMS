@@ -1,10 +1,13 @@
 import { h, api, init, toast, askText, folderTree, descendantIds, fmtSize, fmtUploadDate, extBadge, highlight, initials, svgIcon, ICON, driveFolderUrl, qs } from './common.js';
 
+// ขอรายการเอกสารพร้อมกับข้อมูลเริ่มต้น ไม่ต้องรอกันทีละอย่าง
+const docsReq = api('GET', '/api/documents');
+docsReq.catch(() => {});
 const boot = await init('docs', 'เอกสาร');
 const isAdmin = boot.me.role === 'admin';
 const $ = (id) => document.getElementById(id);
 let folders = boot.folders;
-let docs = (await api('GET', '/api/documents')).documents;
+let docs = (await docsReq).documents;
 let current = qs('folder') || ''; // '' = ทุกโฟลเดอร์
 let shown = 100;
 $('main').removeAttribute('aria-busy');

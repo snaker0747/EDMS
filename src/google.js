@@ -194,6 +194,13 @@ export const sheetsGet = (env, id, range) =>
     `${SHEETS}/${id}/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`
   );
 
+// อ่านหลายแท็บในคำขอเดียว (เร็วกว่าอ่านทีละแท็บมาก)
+export const sheetsBatchGet = (env, id, ranges) =>
+  gjson(
+    env,
+    `${SHEETS}/${id}/values:batchGet?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS&${ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join('&')}`
+  );
+
 export const sheetsUpdate = (env, id, range, values) =>
   gjson(env, `${SHEETS}/${id}/values/${encodeURIComponent(range)}?valueInputOption=RAW`, {
     method: 'PUT',

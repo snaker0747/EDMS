@@ -1,5 +1,8 @@
 import { h, api, init, toast, askText, confirmBox, openDialog, detailsForm, folderSelect, fmtDate, fmtDateTime, fmtSize, extLabel, driveFolderUrl, qs } from './common.js';
 
+// ขอข้อมูลเอกสารพร้อมกับข้อมูลเริ่มต้นของระบบ
+let firstReq = api('GET', `/api/documents/${encodeURIComponent(new URLSearchParams(location.search).get('id') || '')}`);
+firstReq.catch(() => {});
 const boot = await init('docs', 'รายละเอียดเอกสาร');
 document.querySelector('main').removeAttribute('aria-busy');
 const $ = (id) => document.getElementById(id);
@@ -8,7 +11,8 @@ const isAdmin = boot.me.role === 'admin';
 let doc, canEdit;
 
 async function load() {
-  const r = await api('GET', `/api/documents/${encodeURIComponent(id)}`);
+  const r = await (firstReq || api('GET', `/api/documents/${encodeURIComponent(id)}`));
+  firstReq = null;
   doc = r.document;
   canEdit = r.can_edit;
   render();

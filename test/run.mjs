@@ -15,19 +15,23 @@ const env = {
 const ctx = { waitUntil: (p) => pending.push(p) };
 const pending = [];
 const BASE = 'https://edms.rayongcity.workers.dev';
-let cookie = '';
+const jar = new Map(); // จำลองคุกกี้ของเบราว์เซอร์
 
 async function call(method, path, { body, form, key, headers = {}, noCookie } = {}) {
   const h = new Headers(headers);
-  if (cookie && !noCookie) h.set('cookie', cookie);
+  if (jar.size && !noCookie) h.set('cookie', [...jar].map(([k, v]) => `${k}=${v}`).join('; '));
   if (key) h.set('x-setup-key', key);
   let b;
   if (form) b = form;
   else if (body !== undefined) { h.set('content-type', 'application/json'); b = JSON.stringify(body); }
   const res = await worker.fetch(new Request(BASE + path, { method, headers: h, body: b }), env, ctx);
   await Promise.all(pending.splice(0));
-  const sc = res.headers.get('set-cookie');
-  if (sc) cookie = sc.startsWith('edms_session=;') || /Max-Age=0/.test(sc) ? '' : sc.split(';')[0];
+  for (const sc of res.headers.getSetCookie()) {
+    const [kv] = sc.split(';');
+    const i = kv.indexOf('=');
+    const k = kv.slice(0, i), v = kv.slice(i + 1);
+    if (!v || /Max-Age=0/.test(sc)) jar.delete(k); else jar.set(k, v);
+  }
   const ct = res.headers.get('content-type') || '';
   const data = ct.includes('json') ? await res.json() : await res.arrayBuffer();
   return { status: res.status, data, headers: res.headers };
@@ -184,9 +188,9 @@ ok(await call('POST', '/api/users', { body: { username: 'somchai', display_name:
 ok(await call('POST', '/api/users', { body: { username: 'somchai', display_name: 'สมชาย', role: 'user', password: 'Somchai#2570' } }), 201);
 ok(await call('POST', '/api/users', { body: { username: 'SomChai', display_name: 'x', role: 'user', password: 'Somchai#2570' } }), 409);
 
-const adminCookie = cookie;
+const adminCookie = new Map(jar);
 step('ผู้ใช้ทั่วไปล็อกอิน: อัปโหลดได้ แต่ทำงานผู้ดูแลไม่ได้');
-cookie = '';
+jar.clear();
 ok(await call('POST', '/api/login', { body: { username: 'somchai', password: 'Somchai#2570' } }));
 ok(await call('GET', '/api/users'), 403);
 ok(await call('PUT', '/api/settings', { body: { doc_types: ['x'] } }), 403);
@@ -207,20 +211,20 @@ step('CSRF: Origin ต่างโดเมน = 403');
 ok(await call('POST', '/api/folders', { body: { name: 'x', parent_id: 'ROOT' }, headers: { origin: 'https://evil.example' } }), 403);
 
 step('คุกกี้ปลอม/แก้ไข = 401');
-const saved = cookie;
-cookie = saved.slice(0, -3) + 'abc';
+const saved = new Map(jar);
+jar.set('edms_session', jar.get('edms_session').slice(0, -3) + 'abc');
 ok(await call('GET', '/api/bootstrap'), 401);
 
 step('แอดมินปิดการใช้งานผู้ใช้ → ใช้งานต่อไม่ได้ + ล็อกอินไม่ได้');
-cookie = adminCookie;
+jar.clear(); for (const [k, v] of adminCookie) jar.set(k, v);
 ok(await call('PATCH', '/api/users/somchai', { body: { active: false } }));
-cookie = saved;
+jar.clear(); for (const [k, v] of saved) jar.set(k, v);
 // worker แคชรายชื่อผู้ใช้ไว้ 30 วินาที แต่เขียนผ่าน isolate เดียวกันจึงล้างแคชแล้ว
 ok(await call('GET', '/api/bootstrap'), 401);
 ok(await call('POST', '/api/login', { body: { username: 'somchai', password: 'NewPassw0rd!' } }), 401);
 
 step('กันแอดมินคนสุดท้ายปิดตัวเอง/ลดสิทธิ์ตัวเอง');
-cookie = adminCookie;
+jar.clear(); for (const [k, v] of adminCookie) jar.set(k, v);
 ok(await call('PATCH', '/api/users/admin', { body: { role: 'user' } }), 400);
 ok(await call('PATCH', '/api/users/admin', { body: { active: false } }), 400);
 
@@ -245,9 +249,18 @@ assert.equal(r.data.documents_added, 1);
 r = await call('POST', '/api/admin/sync', { body: {} });
 assert.equal(r.data.documents_added, 0);
 
+step('แคชข้อมูล: อ่านซ้ำใช้แคช, หลังเขียนต้องอ่านใหม่ (แม้ไปตก Worker ตัวอื่นก็อ่านใหม่ด้วยคุกกี้ edms_w)');
+await call('GET', '/api/bootstrap');
+const hit = await call('GET', '/api/documents');
+assert.match(hit.headers.get('server-timing'), /snap;desc="hit"/);
+jar.set('edms_w', String(Date.now() + 5000));
+const fut = await call('GET', '/api/documents');
+jar.delete('edms_w');
+assert.match(fut.headers.get('server-timing'), /snap;desc="miss"/);
+
 step('ออกจากระบบ');
 ok(await call('POST', '/api/logout', { body: {} }));
-assert.equal(cookie, '');
+assert.equal(jar.has('edms_session'), false);
 ok(await call('GET', '/api/bootstrap'), 401);
 
 step('หน้าเว็บ (ไม่ใช่ /api) ส่งต่อไปที่ไฟล์ static');

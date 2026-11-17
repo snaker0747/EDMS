@@ -77,6 +77,8 @@ export default {
       if (!route) throw new HttpError(methodMismatch ? 405 : 404, methodMismatch ? 'ไม่รองรับวิธีเรียกนี้' : 'ไม่พบหน้าที่ขอ');
 
       const c = makeCtx(env, ctx);
+      c.writeTs = Number(/(?:^|;\s*)edms_w=(\d+)/.exec(request.headers.get('cookie') || '')?.[1]) || 0;
+      const t0 = Date.now();
       if (route.access !== 'public') {
         const username = await readSession(env, request);
         const row = username ? await findUser(c, username) : null;
@@ -84,7 +86,13 @@ export default {
         c.user = { username: row.username, display_name: row.display_name, role: row.role === 'admin' ? 'admin' : 'user' };
         if (route.access === 'admin' && c.user.role !== 'admin') throw new HttpError(403, 'ต้องเป็นผู้ดูแลระบบเท่านั้น');
       }
-      return await route.handler(c, params, request);
+      const res = await route.handler(c, params, request);
+      // บอกว่าคำขอนี้ใช้เวลาเท่าไรและใช้ข้อมูลจากแคชหรือไม่ (ดูได้ใน DevTools > Network > Timing)
+      const out = new Response(res.body, res);
+      out.headers.append('server-timing', `app;dur=${Date.now() - t0}, snap;desc="${c.snapMiss ? 'miss' : 'hit'}"`);
+      // มีการเขียนข้อมูล: ให้ผู้ใช้คนนี้อ่านข้อมูลใหม่ทันทีในคำขอถัดไป
+      if (c.wrote) out.headers.append('set-cookie', `edms_w=${c.wrote}; Path=/; Max-Age=60; HttpOnly; Secure; SameSite=Lax`);
+      return out;
     } catch (e) {
       if (e instanceof HttpError) return json({ error: e.message }, e.status);
       console.error('unhandled', e?.stack || e);

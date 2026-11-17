@@ -91,13 +91,71 @@ export function makeCtx(env, ctx) {
 }
 
 let sheetIdCache = null;
-const usersCache = { at: 0, rows: null };
-const USERS_TTL = 30_000;
+
+// แคชตารางหลัก (เอกสาร/โฟลเดอร์/ตั้งค่า/ผู้ใช้) ไว้ในหน่วยความจำของ Worker สั้น ๆ
+// อ่านทั้ง 4 แท็บด้วยคำขอเดียว แทนที่จะอ่านทีละแท็บทุกครั้งที่เปิดหน้า
+// เมื่อมีการเขียนข้อมูล จะล้างแคชทันที และตั้งคุกกี้ edms_w ให้ผู้เขียนอ่านข้อมูลใหม่เสมอแม้ไปตกที่ Worker ตัวอื่น
+const SNAP_KEYS = ['docs', 'folders', 'settings', 'users'];
+const SNAP_TTL = 15_000;
+let gen = 0;
+let snap = { tables: null, at: 0, p: null, pStart: 0 };
+
+function invalidate() {
+  gen++;
+  snap = { tables: null, at: 0, p: null, pStart: 0 };
+}
+
+function markWrite(c, key) {
+  if (!SNAP_KEYS.includes(key)) return;
+  c.wrote = Date.now();
+  invalidate();
+}
 
 export function resetCaches() {
   sheetIdCache = null;
-  usersCache.at = 0;
-  usersCache.rows = null;
+  invalidate();
+}
+
+function parseTable(key, values) {
+  const table = SCHEMA[key];
+  const header = values[0] || [];
+  const idx = headerMap(table, header);
+  const rows = [];
+  for (let i = 1; i < values.length; i++) {
+    const raw = values[i] || [];
+    if (!raw.some((v) => String(v ?? '').trim() !== '')) continue;
+    const obj = { _row: i + 1, _raw: raw };
+    for (const [k] of table.cols) obj[k] = idx[k] >= 0 ? String(raw[idx[k]] ?? '') : '';
+    rows.push(obj);
+  }
+  return { rows, header, idx };
+}
+
+async function getSnapshot(c) {
+  const need = c.writeTs || 0; // ข้อมูลต้องโหลดหลังการเขียนล่าสุดของผู้ใช้คนนี้
+  if (snap.tables && Date.now() - snap.at < SNAP_TTL && snap.at >= need) return snap.tables;
+  c.snapMiss = true;
+  if (snap.p && snap.pStart >= need) return snap.p;
+  const g = gen;
+  const start = Date.now();
+  const p = (async () => {
+    const sheetId = await getSheetId(c);
+    const res = await G.sheetsBatchGet(c.env, sheetId, SNAP_KEYS.map((k) => `'${SCHEMA[k].title}'`));
+    const tables = {};
+    SNAP_KEYS.forEach((k, i) => (tables[k] = parseTable(k, res.valueRanges?.[i]?.values || [])));
+    if (g === gen) {
+      snap.tables = tables;
+      snap.at = start;
+    }
+    return tables;
+  })();
+  snap.p = p;
+  snap.pStart = start;
+  p.then(
+    () => { if (snap.p === p) snap.p = null; },
+    () => { if (snap.p === p) snap.p = null; }
+  );
+  return p;
 }
 
 export async function getSheetId(c, { create = false } = {}) {
@@ -148,6 +206,7 @@ export async function ensureSchema(c, sheetId) {
   if (def) {
     await G.sheetsBatch(c.env, sheetId, [{ deleteSheet: { sheetId: def.properties.sheetId } }]).catch(() => {});
   }
+  invalidate();
 }
 
 // ---------- อ่าน/เขียนตาราง ----------
@@ -159,21 +218,15 @@ function headerMap(table, headerRow) {
 
 export async function readTable(c, key) {
   if (c.cache.has(key)) return c.cache.get(key);
-  const table = SCHEMA[key];
-  const sheetId = await getSheetId(c);
-  const res = await G.sheetsGet(c.env, sheetId, `'${table.title}'`);
-  const values = res.values || [];
-  const header = values[0] || [];
-  const idx = headerMap(table, header);
-  const rows = [];
-  for (let i = 1; i < values.length; i++) {
-    const raw = values[i] || [];
-    if (!raw.some((v) => String(v ?? '').trim() !== '')) continue;
-    const obj = { _row: i + 1, _raw: raw };
-    for (const [k] of table.cols) obj[k] = idx[k] >= 0 ? String(raw[idx[k]] ?? '') : '';
-    rows.push(obj);
+  let out;
+  if (SNAP_KEYS.includes(key)) {
+    out = (await getSnapshot(c))[key];
+  } else {
+    const table = SCHEMA[key];
+    const sheetId = await getSheetId(c);
+    const res = await G.sheetsGet(c.env, sheetId, `'${table.title}'`);
+    out = parseTable(key, res.values || []);
   }
-  const out = { rows, header, idx };
   c.cache.set(key, out);
   return out;
 }
@@ -183,6 +236,12 @@ async function getHeader(c, key) {
   const ck = `header:${key}`;
   if (c.cache.has(ck)) return c.cache.get(ck);
   const table = SCHEMA[key];
+  const known = snap.tables?.[key]; // หัวตารางแทบไม่เปลี่ยน ใช้จากแคชได้เลยเพื่อลดการเรียก
+  if (known) {
+    const out = { header: known.header, idx: known.idx };
+    c.cache.set(ck, out);
+    return out;
+  }
   const sheetId = await getSheetId(c);
   const res = await G.sheetsGet(c.env, sheetId, `'${table.title}'!1:1`);
   const header = res.values?.[0] || [];
@@ -209,7 +268,7 @@ export async function appendRow(c, key, obj) {
   const sheetId = await getSheetId(c);
   await G.sheetsAppend(c.env, sheetId, `'${table.title}'!A1`, [arr]);
   c.cache.delete(key);
-  if (key === 'users') usersCache.at = 0;
+  markWrite(c, key);
   return obj;
 }
 
@@ -224,7 +283,7 @@ export async function appendRows(c, key, objs) {
     await G.sheetsAppend(c.env, sheetId, `'${table.title}'!A1`, arrs.slice(i, i + 500));
   }
   c.cache.delete(key);
-  if (key === 'users') usersCache.at = 0;
+  markWrite(c, key);
 }
 
 export async function updateRow(c, key, row, patch) {
@@ -235,18 +294,12 @@ export async function updateRow(c, key, row, patch) {
   const sheetId = await getSheetId(c);
   await G.sheetsUpdate(c.env, sheetId, `'${table.title}'!A${row._row}:${colLetter(arr.length)}${row._row}`, [arr]);
   c.cache.delete(key);
-  if (key === 'users') usersCache.at = 0;
+  markWrite(c, key);
   return merged;
 }
 
-// ---------- ผู้ใช้ (แคช 30 วินาทีเพื่อลดการเรียก Sheets) ----------
-export async function getUsers(c) {
-  if (usersCache.rows && Date.now() - usersCache.at < USERS_TTL) return usersCache.rows;
-  const rows = await listRows(c, 'users');
-  usersCache.rows = rows;
-  usersCache.at = Date.now();
-  return rows;
-}
+// ---------- ผู้ใช้ ----------
+export const getUsers = (c) => listRows(c, 'users');
 
 export async function findUser(c, username) {
   const u = String(username || '').trim().toLowerCase();
