@@ -14,24 +14,75 @@ $('main').removeAttribute('aria-busy');
 
 const NA = () => h('em', { class: 'na', text: 'ยังไม่กรอก' });
 
+// ---------- แผนผังโฟลเดอร์: กด + / − เพื่อขยาย/ย่อ จำค่าไว้ในเครื่อง ----------
+const TREE_KEY = 'edms.collapsed';
+let collapsed = new Set();
+try { collapsed = new Set(JSON.parse(localStorage.getItem(TREE_KEY) || '[]')); } catch { /* ใช้ค่าเริ่มต้น: ขยายทั้งหมด */ }
+const saveCollapsed = () => { try { localStorage.setItem(TREE_KEY, JSON.stringify([...collapsed])); } catch { /* ไม่เป็นไร */ } };
+// เปิดทุกโฟลเดอร์แม่ของโฟลเดอร์ที่กำลังดูอยู่ ไม่ให้มันซ่อนอยู่ในกลุ่มที่ย่อไว้
+function revealCurrent() {
+  for (let f = folders.find((x) => x.id === current); f && f.parent_id; f = folders.find((x) => x.id === f.parent_id)) collapsed.delete(f.parent_id);
+}
+// ข้อความบอกที่อยู่โฟลเดอร์ (ตัดชื่อโฟลเดอร์หลักที่ยาวออก)
+function folderLabel(id) {
+  const f = folders.find((x) => x.id === id);
+  if (!f) return { text: 'ไม่พบโฟลเดอร์', title: '' };
+  const segs = String(f.path || f.name).split(' › ');
+  return { text: (segs.length > 1 ? segs.slice(1) : segs).join(' › '), title: f.path };
+}
+
 function renderTree() {
   const t = $('tree');
   t.replaceChildren();
-  const btn = (id, label, count) =>
-    h('button', { class: 'fbtn', type: 'button', 'aria-current': current === id ? 'true' : 'false', onclick: () => select(id) },
-      h('span', { class: 'lead' }, svgIcon(id ? ICON.folder : ICON.files, 16), h('span', { class: 'nm', text: label, title: label })), h('span', { class: 'n', text: count }));
-  const all = btn('', 'เอกสารทั้งหมด', docs.length, 0);
-  t.append(all);
+  const direct = new Map();
+  for (const d of docs) direct.set(d.folder_id, (direct.get(d.folder_id) || 0) + 1);
+  const kids = new Map();
+  for (const f of folders) kids.set(f.parent_id, [...(kids.get(f.parent_id) || []), f.id]);
+  const memo = new Map();
+  const total = (id) => {
+    if (memo.has(id)) return memo.get(id);
+    memo.set(id, 0);
+    let n = direct.get(id) || 0;
+    for (const k of kids.get(id) || []) n += total(k);
+    memo.set(id, n);
+    return n;
+  };
+  const byId = new Map(folders.map((f) => [f.id, f]));
+  const hiddenByParent = (f) => {
+    for (let p = byId.get(f.parent_id), i = 0; p && i < 50; p = byId.get(p.parent_id), i++) if (collapsed.has(p.id)) return true;
+    return false;
+  };
+  const btn = (id, label, count, title) =>
+    h('button', { class: 'fbtn', type: 'button', 'aria-current': current === id ? 'true' : 'false', title, onclick: () => select(id) },
+      h('span', { class: 'lead' }, svgIcon(id ? ICON.folder : ICON.files, 16), h('span', { class: 'nm', text: label })), h('span', { class: 'n', text: count }));
+
+  const parents = folders.filter((f) => (kids.get(f.id) || []).length);
+  if (parents.length) {
+    t.append(h('div', { class: 'treetools' },
+      h('button', { type: 'button', text: 'ขยายทั้งหมด', onclick: () => { collapsed.clear(); saveCollapsed(); renderTree(); } }),
+      h('button', { type: 'button', text: 'ย่อทั้งหมด', onclick: () => { collapsed = new Set(parents.map((f) => f.id)); revealCurrent(); saveCollapsed(); renderTree(); } })));
+  }
+  t.append(h('div', { class: 'fnode' }, btn('', 'เอกสารทั้งหมด', docs.length, '')));
   for (const f of folderTree(folders)) {
-    const b = btn(f.id, f.name, f.doc_count, f.depth);
-    b.style.paddingLeft = `${10 + f.depth * 16}px`;
-    t.append(b);
+    if (hiddenByParent(f)) continue;
+    const sub = (kids.get(f.id) || []).length;
+    const open = !collapsed.has(f.id);
+    const n = total(f.id);
+    const own = direct.get(f.id) || 0;
+    const toggle = sub
+      ? h('button', {
+          class: 'tg', type: 'button', 'aria-expanded': String(open), 'aria-label': `${open ? 'ย่อ' : 'ขยาย'}โฟลเดอร์ย่อยของ ${f.name}`, title: open ? 'ย่อโฟลเดอร์ย่อย' : `ขยายดูโฟลเดอร์ย่อย (${sub})`, text: open ? '−' : '+',
+          onclick: () => { if (open) collapsed.add(f.id); else collapsed.delete(f.id); saveCollapsed(); renderTree(); },
+        })
+      : h('span', { class: 'tg sp' });
+    t.append(h('div', { class: 'fnode', style: `padding-left:${f.depth * 14}px` }, toggle, btn(f.id, f.name, n, `${f.path} — ในโฟลเดอร์นี้ ${own} รายการ${sub ? `, รวมโฟลเดอร์ย่อย ${n} รายการ` : ''}`)));
   }
 }
 
 function select(id) {
   setDrawer(false);
   current = id;
+  revealCurrent();
   shown = 100;
   history.replaceState(null, '', id ? `/?folder=${encodeURIComponent(id)}` : '/');
   renderTree();
@@ -208,7 +259,10 @@ function render() {
   for (const d of list.slice(0, shown)) {
     t.append(
       h('div', { class: 'tr' },
-        h('a', { class: 'nm', href: `/doc.html?id=${encodeURIComponent(d.id)}` }, extBadge(d.file_name), h('span', { class: 't', title: d.title }, ...highlight(d.title, q))),
+        h('a', { class: 'nm', href: `/doc.html?id=${encodeURIComponent(d.id)}` }, extBadge(d.file_name),
+          h('span', { class: 'tt' },
+            h('span', { class: 't', title: d.title }, ...highlight(d.title, q)),
+            (() => { const fl = folderLabel(d.folder_id); return h('span', { class: 'fp', title: fl.title }, svgIcon(ICON.folder, 13), fl.text); })())),
         h('div', { class: 'c-no sub' }, d.doc_no ? highlight(d.doc_no, q) : NA()),
         h('div', { class: 'c-type' }, d.doc_type ? h('span', { class: 'tag', text: d.doc_type }) : NA()),
         h('div', { class: 'c-size mono', text: fmtSize(d.size) }),
@@ -250,6 +304,7 @@ $('newFolder').addEventListener('click', () =>
 );
 
 if (current && !folders.some((f) => f.id === current)) current = '';
+revealCurrent();
 renderFilters();
 renderTree();
 renderHead();

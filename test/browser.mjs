@@ -192,6 +192,20 @@ await shot(m.page, '13-mobile-detail');
 const pdfDoc = [...mock.files.values()].find((f) => f.name === 'เอกสารจากกล้อง.pdf');
 console.log('camera pdf in Drive:', !!pdfDoc, pdfDoc && new TextDecoder().decode(pdfDoc.bytes.slice(0, 8)), pdfDoc?.bytes.byteLength);
 
+// ---- แผนผังโฟลเดอร์: ย่อ/ขยายด้วย + − ----
+await page.goto(url + '/');
+await page.waitForSelector('#tree .fbtn');
+const fbBefore = await page.locator('#tree .fbtn').count();
+await page.locator('#tree .tg[aria-expanded=true] >> nth=0').click();
+const fbCollapsed = await page.locator('#tree .fbtn').count();
+await shot(page, '16-tree-collapsed');
+await page.reload();
+await page.waitForSelector('#tree .fbtn');
+console.log('tree rows expanded/collapsed/after reload:', fbBefore, fbCollapsed, await page.locator('#tree .fbtn').count());
+await page.click('#tree .treetools button >> text=ขยายทั้งหมด');
+console.log('after expand all:', await page.locator('#tree .fbtn').count(), '| row folder label:', await page.locator('#tbl .fp').first().textContent());
+await shot(page, '17-tree-expanded');
+
 // ---- แก้ชื่อ/ลบ ไฟล์และโฟลเดอร์ จากหน้าคลัง (เดสก์ท็อป) ----
 await page.goto(url + '/');
 await page.waitForSelector('#tbl .tr:not(.head)');
