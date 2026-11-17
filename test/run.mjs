@@ -76,6 +76,10 @@ r = await call('POST', '/api/login', { body: { username: 'ADMIN', password: 'Pas
 ok(r);
 assert.equal(r.data.user.role, 'admin');
 assert.match(r.headers.get('set-cookie'), /HttpOnly; Secure; SameSite=Lax/);
+assert.match(r.headers.get('set-cookie'), /Max-Age=43200;/, 'ไม่ติ๊กจดจำ = 12 ชั่วโมง');
+const rm = await call('POST', '/api/login', { body: { username: 'admin', password: 'Passw0rd!x', remember: true } });
+ok(rm);
+assert.match(rm.headers.get('set-cookie'), /Max-Age=2592000;/, 'ติ๊กจดจำ = 30 วัน');
 
 step('bootstrap: โฟลเดอร์ + ตั้งค่า + จำนวนเอกสาร');
 r = await call('GET', '/api/bootstrap'); ok(r);

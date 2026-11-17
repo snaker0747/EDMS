@@ -5,6 +5,7 @@ const enc = new TextEncoder();
 const ITERATIONS = 100000; // ค่าสูงสุดที่ Cloudflare Workers รองรับ
 export const COOKIE = 'edms_session';
 export const SESSION_SECONDS = 12 * 60 * 60;
+export const REMEMBER_SECONDS = 30 * 24 * 60 * 60; // ติ๊ก "จดจำการเข้าสู่ระบบ"
 
 async function pbkdf2(password, salt, iterations) {
   const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
@@ -37,8 +38,8 @@ async function hmacKey(env) {
   ]);
 }
 
-export async function signSession(env, username) {
-  const payload = b64uEncode(enc.encode(JSON.stringify({ u: username, exp: Math.floor(Date.now() / 1000) + SESSION_SECONDS })));
+export async function signSession(env, username, seconds = SESSION_SECONDS) {
+  const payload = b64uEncode(enc.encode(JSON.stringify({ u: username, exp: Math.floor(Date.now() / 1000) + seconds })));
   const sig = await crypto.subtle.sign('HMAC', await hmacKey(env), enc.encode(payload));
   return `${payload}.${b64uEncode(sig)}`;
 }

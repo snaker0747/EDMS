@@ -28,9 +28,20 @@ await page.click('#go');
 await page.waitForSelector('#err:not([hidden])');
 console.log('login error shown:', await page.textContent('#err'));
 await page.fill('#p', 'Passw0rd!x');
+await page.check('#rem');
 await page.click('#go');
 await page.waitForURL(/dashboard\.html/); // ล็อกอินแล้วเข้าแดชบอร์ดก่อน
 await page.waitForSelector('#kpis .kpi');
+{ const ck = (await page.context().cookies()).find((c) => c.name === 'edms_session');
+  console.log('remember cookie days:', ck ? Math.round((ck.expires - Date.now() / 1000) / 86400) : 'none'); }
+// กลับมาหน้าล็อกอินอีกครั้ง: ต้องจำชื่อผู้ใช้และตัวเลือกไว้ (ไม่จำรหัสผ่าน)
+await page.evaluate(() => fetch('/api/logout', { method: 'POST' }));
+await page.goto(url + '/login.html');
+console.log('prefill user:', await page.inputValue('#u'), '| remember checked:', await page.isChecked('#rem'), '| password empty:', (await page.inputValue('#p')) === '');
+await shot(page, '01b-login-remember');
+await page.fill('#p', 'Passw0rd!x');
+await page.click('#go');
+await page.waitForURL(/dashboard\.html/);
 await page.goto(url + '/');
 await page.waitForSelector('#tbl .tr:not(.head)');
 await shot(page, '02-library');

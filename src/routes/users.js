@@ -1,5 +1,5 @@
 import { HttpError, json, nowIso, clampStr } from '../util.js';
-import { hashPassword, verifyPassword, signSession, sessionCookie, passwordProblem } from '../auth.js';
+import { hashPassword, verifyPassword, signSession, sessionCookie, REMEMBER_SECONDS, SESSION_SECONDS, passwordProblem } from '../auth.js';
 import { getUsers, findUser, appendRow, updateRow, isActive, logHistory } from '../db.js';
 
 const USERNAME_RE = /^[a-z0-9._-]{3,30}$/;
@@ -31,10 +31,11 @@ export async function login(c, _p, request) {
     throw new HttpError(401, 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
   }
   fails.delete(key);
-  const token = await signSession(c.env, user.username);
+  const secs = body.remember === true ? REMEMBER_SECONDS : SESSION_SECONDS;
+  const token = await signSession(c.env, user.username, secs);
   c.user = me(user);
   logHistory(c, 'เข้าสู่ระบบ', user.username, user.display_name);
-  return json({ user: me(user) }, 200, { 'set-cookie': sessionCookie(token) });
+  return json({ user: me(user) }, 200, { 'set-cookie': sessionCookie(token, secs) });
 }
 
 export async function logout() {
