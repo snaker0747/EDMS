@@ -295,6 +295,27 @@ console.log('shrink to min 200 and disable:', wMin, await page.locator('#szLess'
 for (let i = 0; i < 12; i++) if (!(await page.locator('#szMore').isDisabled())) await page.click('#szMore');
 const wMax = await sideW();
 console.log('expand to max and disable:', wMax, await page.locator('#szMore').isDisabled());
+{ // กดค้างที่ปุ่ม < > แล้วลากซ้าย-ขวา
+  await page.evaluate(() => localStorage.removeItem('edms.sideWidth'));
+  await page.reload(); await page.waitForSelector('#tree .fnode');
+  const d0 = await sideW();
+  const gb = await page.locator('.szgrp').boundingBox();
+  await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await page.mouse.down();
+  await page.mouse.move(gb.x + gb.width / 2 + 120, gb.y + gb.height / 2, { steps: 8 });
+  const dMid = await sideW();
+  await page.mouse.up();
+  console.log('hold & drag right:', d0, '->', dMid, '| ok:', dMid >= d0 + 100, '| no extra step click:', (await sideW()) === dMid);
+  const gb2 = await page.locator('.szgrp').boundingBox();
+  await page.mouse.move(gb2.x + gb2.width / 2, gb2.y + gb2.height / 2); await page.mouse.down();
+  await page.mouse.move(gb2.x + gb2.width / 2 - 90, gb2.y + gb2.height / 2, { steps: 6 });
+  await page.mouse.up();
+  const dEnd = await sideW();
+  console.log('hold & drag left (shrink):', dMid, '->', dEnd);
+  await page.reload(); await page.waitForSelector('#tree .fnode');
+  console.log('dragged width persisted:', (await sideW()) === dEnd);
+  await page.evaluate(() => localStorage.removeItem('edms.sideWidth'));
+  await page.reload(); await page.waitForSelector('#tree .fnode');
+}
 console.log('buttons in viewport:', await page.evaluate(() => { const r = document.querySelector('.szgrp').getBoundingClientRect(); return r.top > 0 && r.bottom < innerHeight; }));
 await page.evaluate(() => localStorage.removeItem('edms.sideWidth'));
 await page.reload();

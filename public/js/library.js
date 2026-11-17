@@ -576,6 +576,32 @@ function applySideWidth(w, save = false) {
   addEventListener('resize', () => { const cur = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--side-w'), 10); if (cur) applySideWidth(cur); else updateSizeButtons(); });
   $('szLess').addEventListener('click', () => applySideWidth(sideNow() - STEP_SIDE, true));
   $('szMore').addEventListener('click', () => applySideWidth(sideNow() + STEP_SIDE, true));
+  // กดค้างที่ปุ่ม < > แล้วลากซ้าย-ขวาเพื่อยืดเข้า-ออกอย่างต่อเนื่อง (คลิกสั้น ๆ = ปรับทีละขั้น)
+  const grp = document.querySelector('.szgrp');
+  let drag = null, justDragged = false;
+  grp.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    drag = { id: e.pointerId, x: e.clientX, w: sideNow(), moved: false };
+  });
+  grp.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved) {
+      if (Math.abs(e.clientX - drag.x) < 5) return;
+      drag.moved = true;
+      grp.setPointerCapture(e.pointerId);
+      document.body.classList.add('resizing');
+    }
+    applySideWidth(drag.w + (e.clientX - drag.x));
+  });
+  const endDrag = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (drag.moved) { justDragged = true; setTimeout(() => { justDragged = false; }, 0); applySideWidth(sideNow(), true); }
+    document.body.classList.remove('resizing');
+    drag = null;
+  };
+  grp.addEventListener('pointerup', endDrag);
+  grp.addEventListener('pointercancel', endDrag);
+  grp.addEventListener('click', (e) => { if (justDragged) { e.stopPropagation(); e.preventDefault(); } }, true);
   updateSizeButtons();
 }
 
