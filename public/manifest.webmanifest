@@ -1,0 +1,10 @@
+{
+  "name": "ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์ ส่วนการโยธา",
+  "short_name": "EDMS ส่วนการโยธา",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F7FB",
+  "theme_color": "#14264A",
+  "lang": "th",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

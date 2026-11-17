@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14264A">
+<title>รายละเอียดเอกสาร | ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์ ส่วนการโยธา</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@1&family=Noto+Sans+Thai:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div id="top"></div>
+<noscript><p style="padding:24px">ระบบนี้ต้องเปิดใช้งาน JavaScript</p></noscript>
+<main class="wrap" aria-busy="true">
+<div class="row spread" style="align-items:flex-end"><div style="min-width:0"><div class="crumb" id="crumb"></div><h1 id="h1" style="font-size:24px;overflow-wrap:anywhere">กำลังโหลด…</h1></div>
+<div class="row" id="topActs"></div></div>
+<div class="cols"><section class="viewer" id="viewer"></section>
+<aside style="flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:16px">
+<section class="card"><div class="row spread"><h2>รายละเอียด</h2><button class="btn" id="edit" type="button" hidden>แก้ไข</button></div><dl class="kv" id="kv"></dl></section>
+<section class="card" id="manage" hidden><h2>จัดการ</h2><div class="row" id="manageBtns"></div></section>
+<section class="card"><h2>ประวัติ</h2><div id="hist" style="display:flex;flex-direction:column;gap:8px;font-size:14px"></div></section>
+</aside></div></main>
+<script type="module" src="/js/detail.js"></script>
+</body>
+</html>

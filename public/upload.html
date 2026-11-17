@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14264A">
+<title>อัปโหลดเอกสาร | ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์ ส่วนการโยธา</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@1&family=Noto+Sans+Thai:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div id="top"></div>
+<noscript><p style="padding:24px">ระบบนี้ต้องเปิดใช้งาน JavaScript</p></noscript>
+<main class="wrap" aria-busy="true">
+<div><div class="crumb"><a href="/">เอกสาร</a> › อัปโหลด</div><h1>อัปโหลดเอกสาร</h1></div>
+<div class="cols">
+<section style="flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:14px">
+<div class="drop" id="drop"><svg class="icon" style="width:40px;height:40px;color:var(--blue)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>
+<div style="font-size:17px;font-weight:600">ลากไฟล์มาวางที่นี่</div>
+<div class="muted" style="font-size:14px">รองรับ PDF เป็นหลัก รวมถึงรูปภาพ Word Excel PowerPoint DWG · เลือกได้หลายไฟล์ · ไม่เกิน <span id="maxmb">40</span> MB ต่อไฟล์</div>
+<div class="row" style="justify-content:center;margin-top:6px"><button class="btn blue" id="pick" type="button">เลือกไฟล์จากเครื่อง</button><button class="btn" id="camBtn" type="button">ถ่ายจากกล้องมือถือ</button></div>
+<input id="file" type="file" multiple hidden accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.tif,.tiff,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.dwg,.dxf">
+</div>
+<section class="card" id="cam" hidden><h2>ถ่ายเอกสารด้วยกล้อง</h2>
+<div class="muted" style="font-size:14px">ถ่ายทีละหน้า แล้วรวมเป็นไฟล์ PDF ไฟล์เดียว</div>
+<div class="thumbs" id="thumbs"></div>
+<div class="row"><button class="btn blue" id="shot" type="button">ถ่ายหน้าถัดไป</button><button class="btn" id="gallery" type="button">เลือกรูปจากคลังภาพ</button><button class="btn primary" id="mkpdf" type="button" disabled>รวมเป็น PDF</button><button class="btn" id="camClear" type="button" disabled>ล้างทั้งหมด</button></div>
+<input id="shotIn" type="file" accept="image/*" capture="environment" hidden><input id="galIn" type="file" accept="image/*" multiple hidden>
+</section>
+<h2 style="font-size:14px;color:var(--ink2)">ไฟล์ที่เลือก</h2>
+<div id="queue" style="display:flex;flex-direction:column;gap:10px"><div class="muted">ยังไม่ได้เลือกไฟล์</div></div>
+</section>
+<section class="card" style="flex:1 1 480px;min-width:0;padding:22px 24px;gap:16px"><h2 style="font-size:18px">รายละเอียดเอกสาร</h2>
+<div id="formHost"></div>
+<div class="field"><label for="folder">โฟลเดอร์ปลายทาง <span class="req">*</span></label><div class="row" id="folderRow"></div></div>
+<label class="row" style="min-height:44px;gap:10px"><input type="checkbox" id="same" checked> ใช้รายละเอียดชุดนี้กับทุกไฟล์ที่เลือก (ชื่อเอกสารตั้งแยกรายไฟล์ได้)</label>
+<div class="row" style="justify-content:flex-end;border-top:1px solid var(--line2);padding-top:16px"><a class="btn" href="/">ยกเลิก</a><button class="btn primary" id="save" type="button" disabled>บันทึกและส่งขึ้น Google Drive</button></div>
+</section></div></main>
+<script type="module" src="/js/upload.js"></script>
+</body>
+</html>

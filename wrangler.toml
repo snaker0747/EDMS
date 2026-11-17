@@ -1,0 +1,25 @@
+name = "edms"
+main = "src/index.js"
+compatibility_date = "2025-11-01"
+
+# เปิดที่อยู่ edms.<ชื่อบัญชี>.workers.dev (บัญชีของเทศบาล = rayongcity)
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+# ให้ /api/* ผ่าน Worker ก่อนเสมอ ส่วนหน้าเว็บอื่น ๆ เสิร์ฟจาก public/
+run_worker_first = ["/api/*"]
+
+[vars]
+# โฟลเดอร์หลักใน Google Drive: เอกสารส่วนการโยธา สำนักช่าง
+ROOT_FOLDER_ID = "1s3V8fGcXYqBYNw5Xrg2mmaWbe5JVlhDa"
+# ปล่อยว่างได้ ระบบจะค้นหาไฟล์ Google Sheet "EDMS ข้อมูลระบบ" ในโฟลเดอร์หลักให้เอง
+SHEET_ID = ""
+# ขนาดไฟล์สูงสุดต่อไฟล์ (MB)
+MAX_UPLOAD_MB = "40"
+
+# ค่าลับ (ตั้งด้วย `npx wrangler secret put <ชื่อ>` ห้ามใส่ในไฟล์นี้):
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN
+#   SESSION_SECRET  (สุ่มข้อความยาว ๆ สำหรับลงนามคุกกี้ล็อกอิน)
+#   SETUP_KEY       (รหัสใช้ครั้งแรกเพื่อสร้างตารางและผู้ดูแลระบบ)

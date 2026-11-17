@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14264A">
+<title>เข้าสู่ระบบ | ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์ ส่วนการโยธา</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@1&family=Noto+Sans+Thai:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div id="top"></div>
+<noscript><p style="padding:24px">ระบบนี้ต้องเปิดใช้งาน JavaScript</p></noscript>
+<main class="loginbox"><form class="card" id="f" style="gap:16px">
+<div><h1>เข้าสู่ระบบ</h1><div class="muted" style="margin-top:4px">ใช้ชื่อผู้ใช้และรหัสผ่านที่ผู้ดูแลระบบกำหนดให้ · <span class="serif" style="font-size:17px;color:var(--brand)">E-Document Management</span></div></div>
+<div class="field"><label for="u">ชื่อผู้ใช้</label><input id="u" type="text" autocomplete="username" autocapitalize="off" required autofocus></div>
+<div class="field"><label for="p">รหัสผ่าน</label><input id="p" type="password" autocomplete="current-password" required></div>
+<div class="st-err" id="err" role="alert" hidden></div>
+<button class="btn primary" id="go" type="submit">เข้าสู่ระบบ</button>
+<div class="muted" style="font-size:13px">หากลืมรหัสผ่าน กรุณาติดต่อผู้ดูแลระบบของส่วนการโยธา</div>
+</form></main>
+<script type="module" src="/js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "edms",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์ ส่วนการโยธา สำนักช่าง เทศบาลนครระยอง",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node test/run.mjs",
+    "token": "node scripts/get-refresh-token.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

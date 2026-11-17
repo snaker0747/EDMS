@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14264A">
+<title>เอกสาร | ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์ ส่วนการโยธา</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@1&family=Noto+Sans+Thai:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div id="top"></div>
+<noscript><p style="padding:24px">ระบบนี้ต้องเปิดใช้งาน JavaScript</p></noscript>
+<div class="layout">
+<aside class="side" aria-label="โฟลเดอร์"><div class="cap">โฟลเดอร์</div><div id="tree"></div></aside>
+<main class="main" id="main" aria-busy="true">
+<div class="row spread">
+<div><div class="crumb" id="crumb">กำลังโหลด…</div><h1 id="h1">เอกสาร</h1><div class="lede" id="lede"></div><a id="driveLink" href="#" target="_blank" rel="noopener" hidden>เปิดโฟลเดอร์นี้ใน Google Drive</a></div>
+<div class="row"><button class="btn" id="newFolder" type="button">+ สร้างโฟลเดอร์</button><a class="btn primary" id="upBtn" href="/upload.html">อัปโหลดเอกสาร</a></div>
+</div>
+<section class="kpis" id="kpis" aria-label="สรุปภาพรวม"></section>
+<section class="card toolbar" aria-label="ค้นหาและกรอง">
+<div class="search"><label for="q" class="sr">ค้นหา</label><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="ค้นหาชื่อเอกสาร เลขที่หนังสือ คำค้น หรือรายละเอียด" autocomplete="off"><kbd aria-hidden="true">/</kbd></div>
+<div class="tchips" id="tchips" role="group" aria-label="กรองตามประเภทเอกสาร" hidden></div>
+<div class="filters">
+<div class="field" hidden><label for="f-type">ประเภทเอกสาร</label><select id="f-type"></select></div>
+<div class="field" style="flex:0 1 130px"><label for="f-year">ปีงบประมาณ</label><select id="f-year"></select></div>
+<div class="field"><label for="f-by">ผู้อัปโหลด</label><select id="f-by"></select></div>
+<div class="field"><label for="f-sort">เรียงตาม</label><select id="f-sort"><option value="new">อัปโหลดล่าสุด</option><option value="old">อัปโหลดเก่าสุด</option><option value="name">ชื่อเอกสาร ก-ฮ</option><option value="no">เลขที่หนังสือ</option></select></div>
+</div>
+<label class="row" style="min-height:32px;gap:8px"><input type="checkbox" id="sub" checked> รวมเอกสารในโฟลเดอร์ย่อย</label>
+</section>
+<div class="chips" id="chips" hidden></div>
+<section class="col" style="display:flex;flex-direction:column;gap:10px"><div class="countline" id="count" role="status"></div>
+<div class="tablewrap"><div class="tbl" id="tbl"><div class="skrow"><span class="sk"></span><span class="sk"></span><span class="sk"></span></div><div class="skrow"><span class="sk"></span><span class="sk"></span><span class="sk"></span></div><div class="skrow"><span class="sk"></span><span class="sk"></span><span class="sk"></span></div><div class="skrow"><span class="sk"></span><span class="sk"></span><span class="sk"></span></div></div></div>
+<button class="btn" id="more" type="button" hidden>แสดงเพิ่ม</button></section>
+</main></div>
+<script type="module" src="/js/library.js"></script>
+</body>
+</html>
