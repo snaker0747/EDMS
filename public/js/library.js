@@ -583,12 +583,13 @@ function applySideWidth(w, save = false) {
     if (e.button !== 0) return;
     drag = { id: e.pointerId, x: e.clientX, w: sideNow(), moved: false };
   });
-  grp.addEventListener('pointermove', (e) => {
+  // ฟังที่ window เพราะปุ่มเล็ก เมาส์/นิ้วอาจหลุดออกนอกปุ่มก่อนจะเริ่มลาก
+  addEventListener('pointermove', (e) => {
     if (!drag || e.pointerId !== drag.id) return;
     if (!drag.moved) {
       if (Math.abs(e.clientX - drag.x) < 5) return;
       drag.moved = true;
-      grp.setPointerCapture(e.pointerId);
+      try { grp.setPointerCapture(e.pointerId); } catch { /* ไม่เป็นไร */ }
       document.body.classList.add('resizing');
     }
     applySideWidth(drag.w + (e.clientX - drag.x));
@@ -599,8 +600,8 @@ function applySideWidth(w, save = false) {
     document.body.classList.remove('resizing');
     drag = null;
   };
-  grp.addEventListener('pointerup', endDrag);
-  grp.addEventListener('pointercancel', endDrag);
+  addEventListener('pointerup', endDrag);
+  addEventListener('pointercancel', endDrag);
   grp.addEventListener('click', (e) => { if (justDragged) { e.stopPropagation(); e.preventDefault(); } }, true);
   updateSizeButtons();
 }
