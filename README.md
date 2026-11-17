@@ -119,3 +119,7 @@ test/                ทดสอบอัตโนมัติด้วย Goog
 npm test                      # ทดสอบ API 37 ขั้น ด้วย Google จำลอง
 node test/dev-server.mjs      # เปิดเว็บทดลองที่ http://localhost:8787 (ข้อมูลจำลอง admin / Passw0rd!x)
 ```
+
+## การเผยแพร่ (Deploy)
+
+เชื่อม Cloudflare Workers Builds กับ repo นี้แล้ว: เมื่อ push ขึ้น `main` ระบบจะ build และเผยแพร่ที่ edms.rayongcity.workers.dev อัตโนมัติ
