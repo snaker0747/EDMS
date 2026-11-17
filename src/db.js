@@ -71,7 +71,9 @@ export const SCHEMA = {
   },
 };
 
-export const DEFAULT_DOC_TYPES = ['หนังสือรับ', 'หนังสือส่ง', 'แบบแปลน', 'ประมาณราคา', 'สัญญา', 'รายงาน'];
+export const DEFAULT_DOC_TYPES = ['หนังสือรับ', 'หนังสือส่ง', 'แบบแปลน', 'ประมาณราคา', 'สัญญา', 'รายงาน', 'เอกสารอื่นๆ'];
+// ประเภทสำรองสำหรับเอกสารที่ไม่เข้าพวก: มีเสมอและอยู่ท้ายสุด
+export const OTHER_DOC_TYPE = 'เอกสารอื่นๆ';
 
 export function colLetter(n) {
   // n เริ่มที่ 1
@@ -258,7 +260,8 @@ export async function getSettings(c) {
       return d;
     }
   };
-  return { doc_types: parse('doc_types', DEFAULT_DOC_TYPES), fields: parse('fields', []) };
+  const types = parse('doc_types', DEFAULT_DOC_TYPES).filter((t) => t !== OTHER_DOC_TYPE);
+  return { doc_types: [...types, OTHER_DOC_TYPE], fields: parse('fields', []) };
 }
 
 export async function saveSetting(c, key, value) {

@@ -137,7 +137,7 @@ function renderSettings() {
   fields.querySelectorAll('.item .tag').forEach((t) => (t.style.fontSize = '12px'));
 
   $('types').replaceChildren(
-    ...settings.doc_types.map((t) => h('span', { class: 'chip' }, t, isAdmin && settings.doc_types.length > 1 ? h('button', { type: 'button', 'aria-label': `ลบ ${t}`, text: '✕', onclick: () => confirmBox(`ลบประเภท "${t}"? (เอกสารเดิมที่เป็นประเภทนี้ยังคงอยู่)`, 'ลบ', true, async () => { await saveSettings({ doc_types: settings.doc_types.filter((x) => x !== t) }); return true; }) }) : ''))
+    ...settings.doc_types.map((t) => h('span', { class: 'chip' }, t, isAdmin && t !== 'เอกสารอื่นๆ' ? h('button', { type: 'button', 'aria-label': `ลบ ${t}`, text: '✕', onclick: () => confirmBox(`ลบประเภท "${t}"? (เอกสารเดิมที่เป็นประเภทนี้ยังคงอยู่)`, 'ลบ', true, async () => { await saveSettings({ doc_types: settings.doc_types.filter((x) => x !== t) }); return true; }) }) : ''))
   );
 }
 
