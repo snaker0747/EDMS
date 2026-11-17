@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14264A">
+<title>แดชบอร์ด | ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์ ส่วนการโยธา</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Thai:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<link rel="modulepreload" href="/js/common.js">
+<link rel="modulepreload" href="/js/dashboard.js">
+</head>
+<body>
+<div id="top"></div>
+<noscript><p style="padding:24px">ระบบนี้ต้องเปิดใช้งาน JavaScript</p></noscript>
+<main class="wrap" id="main" aria-busy="true">
+<div class="row spread"><div><div class="crumb">ภาพรวมของระบบ</div><h1>แดชบอร์ด</h1><div class="lede" id="lede"></div></div>
+<div class="row"><a class="btn" href="/">เอกสารทั้งหมด</a><a class="btn primary" href="/upload.html">อัปโหลดเอกสาร</a></div></div>
+<section class="kpis" id="kpis" aria-label="สรุปภาพรวม"></section>
+<section class="grid2">
+<div class="card"><h2 class="ch">อัปโหลดรายเดือน <small>12 เดือนล่าสุด</small></h2><div id="months"></div></div>
+<div class="card"><h2 class="ch">เอกสารตามประเภท</h2><div id="types"></div></div>
+</section>
+<section class="grid2">
+<div class="card"><h2 class="ch">โฟลเดอร์ที่มีเอกสารมากที่สุด</h2><div id="folders"></div></div>
+<div class="card"><h2 class="ch">ผู้อัปโหลดมากที่สุด</h2><div id="people"></div></div>
+</section>
+<section class="card"><h2 class="ch">อัปโหลดล่าสุด</h2><div id="recent"></div></section>
+</main>
+<script type="module" src="/js/dashboard.js"></script>
+</body>
+</html>

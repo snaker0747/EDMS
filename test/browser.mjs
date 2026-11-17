@@ -100,6 +100,18 @@ await page.click('dialog button[type=submit]');
 await page.waitForSelector('dialog', { state: 'detached' });
 await shot(page, '08-folders');
 
+// แดชบอร์ด
+await page.goto(url + '/dashboard.html');
+await page.waitForSelector('#kpis .kpi');
+await page.waitForSelector('#recent .rr');
+console.log('dashboard kpis:', await page.locator('#kpis .kpi').count(), 'recent:', await page.locator('#recent .rr').count(), 'types:', await page.locator('#types .hb').count());
+await shot(page, '07b-dashboard');
+await page.setViewportSize({ width: 390, height: 800 });
+await page.reload();
+await page.waitForSelector('#recent .rr');
+await shot(page, '07c-dashboard-mobile');
+await page.setViewportSize({ width: 1280, height: 800 });
+
 // ผู้ใช้
 await page.goto(url + '/users.html');
 await page.waitForSelector('#list .tr:not(.head)');

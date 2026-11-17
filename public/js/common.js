@@ -335,6 +335,7 @@ export async function init(active, pageTitle) {
   const boot = await api('GET', '/api/bootstrap');
   const me = boot.me;
   const nav = [
+    ['dash', '/dashboard.html', 'แดชบอร์ด'],
     ['docs', '/', 'เอกสาร'],
     ['upload', '/upload.html', 'อัปโหลด'],
     ['folders', '/folders.html', 'จัดการโฟลเดอร์'],
