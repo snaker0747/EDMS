@@ -551,6 +551,49 @@ async function checkUpdates() {
 setInterval(checkUpdates, 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdates(); });
 
+// ---------- ลากขอบแผนผังโฟลเดอร์เพื่อปรับความกว้าง (จำค่าไว้) ----------
+const WIDTH_KEY = 'edms.sideWidth';
+const MIN_SIDE = 200;
+const maxSide = () => Math.max(MIN_SIDE, Math.min(560, Math.round(innerWidth * (innerWidth <= 1100 ? 0.5 : 0.6) - 40)));
+function applySideWidth(w, save = false) {
+  const root = document.documentElement.style;
+  if (w == null) { root.removeProperty('--side-w'); if (save) try { localStorage.removeItem(WIDTH_KEY); } catch { /* ไม่เป็นไร */ } return; }
+  const v = Math.max(MIN_SIDE, Math.min(maxSide(), Math.round(w)));
+  root.setProperty('--side-w', v + 'px');
+  if (save) try { localStorage.setItem(WIDTH_KEY, String(v)); } catch { /* ไม่เป็นไร */ }
+}
+{
+  let saved = null;
+  try { saved = parseInt(localStorage.getItem(WIDTH_KEY) || '', 10) || null; } catch { /* ไม่เป็นไร */ }
+  if (saved) applySideWidth(saved);
+  addEventListener('resize', () => { const cur = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--side-w'), 10); if (cur) applySideWidth(cur); });
+  const grip = $('sideGrip');
+  const side = $('side');
+  grip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    document.body.classList.add('resizing');
+    const left = side.getBoundingClientRect().left;
+    const move = (ev) => applySideWidth(ev.clientX - left);
+    const up = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', up);
+      grip.removeEventListener('pointercancel', up);
+      document.body.classList.remove('resizing');
+      applySideWidth(side.getBoundingClientRect().width, true);
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up);
+    grip.addEventListener('pointercancel', up);
+  });
+  grip.addEventListener('dblclick', () => applySideWidth(null, true));
+  grip.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    applySideWidth(side.getBoundingClientRect().width + (e.key === 'ArrowRight' ? 24 : -24), true);
+  });
+}
+
 // ---------- จอใหญ่: ซ่อน/แสดงแถบโฟลเดอร์ (จำค่าไว้) ----------
 const SIDE_KEY = 'edms.sideHidden';
 function setSideHidden(hide, save = true) {

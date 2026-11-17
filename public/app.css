@@ -55,7 +55,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* โครงหน้า */
 .wrap{max-width:1360px;margin:0 auto;padding:28px 28px 48px;display:flex;flex-direction:column;gap:20px;width:100%}
 .layout{display:flex;flex-wrap:wrap;flex:1 1 auto;align-items:stretch}
-.side{flex:1 1 264px;max-width:300px;background:var(--brand-deep);color:var(--on-brand-muted);padding:20px 14px 28px;display:flex;flex-direction:column;gap:4px}
+.side{flex:0 0 var(--side-w,288px);width:var(--side-w,288px);max-width:none;background:var(--brand-deep);color:var(--on-brand-muted);padding:20px 14px 28px;display:flex;flex-direction:column;gap:4px}
 .main{flex:999 1 560px;min-width:0;padding:28px 28px 48px;display:flex;flex-direction:column;gap:20px}
 .crumb{font-size:12px;font-weight:600;letter-spacing:.08em;color:var(--text3);text-transform:uppercase}
 h1{font-size:30px;font-weight:600;line-height:1.3;letter-spacing:-.025em}
@@ -319,7 +319,7 @@ body.side-hidden .side{display:none}
 /* แท็บเล็ต/จอเล็ก: โฟลเดอร์อยู่ซ้ายแบบแคบลง (ซ่อนได้ด้วยปุ่ม) */
 @media (max-width:1100px){
   .layout{flex-wrap:nowrap}
-  .side{flex:0 0 232px;max-width:232px;padding:16px 10px 24px}
+  .side{flex:0 0 var(--side-w,232px);width:var(--side-w,232px);padding:16px 10px 24px}
   .main{flex:1 1 0}
   .tg{width:34px;height:34px}
   .tg svg{width:16px;height:16px}
@@ -335,7 +335,7 @@ body.side-hidden .side{display:none}
   body{padding-bottom:calc(68px + env(safe-area-inset-bottom))}
   /* มือถือ: แผนผังโฟลเดอร์วางเหนือรายการ เลื่อนดูได้ ซ่อนด้วยปุ่มโฟลเดอร์ */
   .layout{flex-direction:column}
-  .side{flex:none;max-width:none;max-height:40vh;overflow-y:auto;overscroll-behavior:contain;margin:12px 14px 0;border-radius:18px;padding:10px 8px 14px}
+  .side{flex:none;width:auto;max-width:none;max-height:40vh;overflow-y:auto;overscroll-behavior:contain;margin:12px 14px 0;border-radius:18px;padding:10px 8px 14px}
   .mobrow{display:flex;gap:8px}
   .top{padding-top:env(safe-area-inset-top)}
   .topin{padding:8px 14px;gap:10px;flex-wrap:nowrap}
@@ -421,3 +421,11 @@ body.dragging .side{outline:2px dashed rgba(110,168,254,.55);outline-offset:-6px
 .btnpair{display:inline-flex;gap:6px}
 .btnpair[hidden]{display:none}
 @media (max-width:760px){.row.spread>.row>.btnpair{flex:none}}
+/* ขอบแผนผังโฟลเดอร์: ลากเพื่อปรับความกว้าง */
+.sidegrip{position:absolute;top:0;bottom:0;right:-5px;width:11px;cursor:col-resize;z-index:5;touch-action:none;display:flex;justify-content:center}
+.sidegrip::after{content:"";width:3px;height:100%;border-radius:3px;background:transparent;transition:background .15s}
+.sidegrip:hover::after,.sidegrip:focus-visible::after,body.resizing .sidegrip::after{background:#6ea8fe}
+.sidegrip:focus-visible{outline:none}
+body.resizing{cursor:col-resize;user-select:none}
+body.resizing *{cursor:col-resize!important}
+@media (max-width:760px){.sidegrip{display:none}}

@@ -276,6 +276,35 @@ await page.click('#mvFolder');
 console.log('folder move dialog excludes self:', (await page.locator('#mv-fo option', { hasText: 'ปลายทาง B' }).count()) === 0);
 await page.keyboard.press('Escape');
 
+// ---- ลากขอบแผนผังโฟลเดอร์เพื่อปรับความกว้าง ----
+await page.goto(url + '/');
+await page.waitForSelector('#tree .fnode');
+const sideW = () => page.evaluate(() => Math.round(document.querySelector('.side').getBoundingClientRect().width));
+const w0 = await sideW();
+const gb = await page.locator('#sideGrip').boundingBox();
+await page.mouse.move(gb.x + gb.width / 2, 300);
+await page.mouse.down();
+await page.mouse.move(gb.x + gb.width / 2 + 140, 300, { steps: 6 });
+await page.mouse.up();
+const w1 = await sideW();
+console.log('side width default -> dragged wider:', w0, '->', w1, '| ok:', w1 > w0 + 100);
+await shot(page, '22-side-wide');
+await page.reload();
+await page.waitForSelector('#tree .fnode');
+console.log('width persisted after reload:', (await sideW()) === w1);
+await page.mouse.move(gb.x + gb.width / 2 + 140, 300);
+await page.locator('#sideGrip').dblclick();
+console.log('double-click resets width:', (await sideW()) === w0);
+await page.locator('#sideGrip').focus();
+await page.keyboard.press('ArrowRight');
+console.log('keyboard arrow widens:', (await sideW()) > w0);
+await page.locator('#sideGrip').dblclick();
+// ไม่ให้แคบเกินไป
+const gb2 = await page.locator('#sideGrip').boundingBox();
+await page.mouse.move(gb2.x + 5, 300); await page.mouse.down(); await page.mouse.move(20, 300, { steps: 5 }); await page.mouse.up();
+console.log('min width enforced:', (await sideW()) >= 200);
+await page.locator('#sideGrip').dblclick();
+
 // ---- จัดลำดับเอง: โฟลเดอร์ (ลากที่ขอบ + ปุ่มขึ้น/ลง) และเอกสาร (โหมดลำดับที่กำหนดเอง) ----
 await page.goto(url + '/');
 await page.waitForSelector('#tree .fnode');
