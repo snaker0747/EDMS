@@ -421,11 +421,12 @@ body.dragging .side{outline:2px dashed rgba(110,168,254,.55);outline-offset:-6px
 .btnpair{display:inline-flex;gap:6px}
 .btnpair[hidden]{display:none}
 @media (max-width:760px){.row.spread>.row>.btnpair{flex:none}}
-/* ขอบแผนผังโฟลเดอร์: ลากเพื่อปรับความกว้าง */
-.sidegrip{position:absolute;top:0;bottom:0;right:-5px;width:11px;cursor:col-resize;z-index:5;touch-action:none;display:flex;justify-content:center}
-.sidegrip::after{content:"";width:3px;height:100%;border-radius:3px;background:transparent;transition:background .15s}
-.sidegrip:hover::after,.sidegrip:focus-visible::after,body.resizing .sidegrip::after{background:#6ea8fe}
-.sidegrip:focus-visible{outline:none}
-body.resizing{cursor:col-resize;user-select:none}
-body.resizing *{cursor:col-resize!important}
-@media (max-width:760px){.sidegrip{display:none}}
+/* ปุ่ม < > กลางขอบแผนผังโฟลเดอร์: ลด/ขยายความกว้าง */
+.sidesize{position:absolute;top:0;bottom:0;right:0;width:0;z-index:6}
+.szgrp{position:sticky;top:calc(50vh - 18px);margin-left:-26px;width:max-content;display:flex;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:0 2px 8px rgba(11,24,48,.14);overflow:hidden}
+.szgrp button{width:26px;height:36px;padding:0;border:0;background:transparent;color:var(--text);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.szgrp button+button{border-left:1px solid var(--border)}
+.szgrp button:hover:not(:disabled){background:var(--bg)}
+.szgrp button:disabled{opacity:.3;cursor:default}
+.szgrp button:focus-visible{outline:2px solid #6ea8fe;outline-offset:-2px}
+@media (max-width:760px){.sidesize{display:none}}

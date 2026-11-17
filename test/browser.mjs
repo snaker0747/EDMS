@@ -276,34 +276,29 @@ await page.click('#mvFolder');
 console.log('folder move dialog excludes self:', (await page.locator('#mv-fo option', { hasText: 'ปลายทาง B' }).count()) === 0);
 await page.keyboard.press('Escape');
 
-// ---- ลากขอบแผนผังโฟลเดอร์เพื่อปรับความกว้าง ----
+// ---- ปุ่ม < > ปรับความกว้างแผนผังโฟลเดอร์ ----
 await page.goto(url + '/');
 await page.waitForSelector('#tree .fnode');
 const sideW = () => page.evaluate(() => Math.round(document.querySelector('.side').getBoundingClientRect().width));
 const w0 = await sideW();
-const gb = await page.locator('#sideGrip').boundingBox();
-await page.mouse.move(gb.x + gb.width / 2, 300);
-await page.mouse.down();
-await page.mouse.move(gb.x + gb.width / 2 + 140, 300, { steps: 6 });
-await page.mouse.up();
+console.log('size buttons visible:', await page.locator('#szLess').isVisible(), await page.locator('#szMore').isVisible());
+await page.click('#szMore'); await page.click('#szMore');
 const w1 = await sideW();
-console.log('side width default -> dragged wider:', w0, '->', w1, '| ok:', w1 > w0 + 100);
+console.log('expand x2:', w0, '->', w1, '| ok:', w1 === w0 + 112);
 await shot(page, '22-side-wide');
 await page.reload();
 await page.waitForSelector('#tree .fnode');
 console.log('width persisted after reload:', (await sideW()) === w1);
-await page.mouse.move(gb.x + gb.width / 2 + 140, 300);
-await page.locator('#sideGrip').dblclick();
-console.log('double-click resets width:', (await sideW()) === w0);
-await page.locator('#sideGrip').focus();
-await page.keyboard.press('ArrowRight');
-console.log('keyboard arrow widens:', (await sideW()) > w0);
-await page.locator('#sideGrip').dblclick();
-// ไม่ให้แคบเกินไป
-const gb2 = await page.locator('#sideGrip').boundingBox();
-await page.mouse.move(gb2.x + 5, 300); await page.mouse.down(); await page.mouse.move(20, 300, { steps: 5 }); await page.mouse.up();
-console.log('min width enforced:', (await sideW()) >= 200);
-await page.locator('#sideGrip').dblclick();
+await page.click('#szLess'); await page.click('#szLess'); await page.click('#szLess'); await page.click('#szLess');
+const wMin = await sideW();
+console.log('shrink to min 200 and disable:', wMin, await page.locator('#szLess').isDisabled());
+for (let i = 0; i < 12; i++) if (!(await page.locator('#szMore').isDisabled())) await page.click('#szMore');
+const wMax = await sideW();
+console.log('expand to max and disable:', wMax, await page.locator('#szMore').isDisabled());
+console.log('buttons in viewport:', await page.evaluate(() => { const r = document.querySelector('.szgrp').getBoundingClientRect(); return r.top > 0 && r.bottom < innerHeight; }));
+await page.evaluate(() => localStorage.removeItem('edms.sideWidth'));
+await page.reload();
+await page.waitForSelector('#tree .fnode');
 
 // ---- จัดลำดับเอง: โฟลเดอร์ (ลากที่ขอบ + ปุ่มขึ้น/ลง) และเอกสาร (โหมดลำดับที่กำหนดเอง) ----
 await page.goto(url + '/');
