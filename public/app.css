@@ -152,7 +152,8 @@ mark{background:#FFE8A3;color:inherit;border-radius:4px;padding:0 1px}
 /* แผนผังโฟลเดอร์: ปุ่ม + / − */
 .fnode{display:flex;align-items:center;gap:4px}
 .fnode .fbtn{flex:1;min-width:0}
-.tg{flex:none;width:26px;height:26px;padding:0;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-size:17px;font-weight:500;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s}
+.tg{flex:none;width:26px;height:26px;padding:0;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s}
+.tg svg{display:block;stroke-width:2.2;pointer-events:none}
 .tg:hover{background:var(--w12)}
 .tg.sp{border-color:transparent;pointer-events:none}
 .tt{display:flex;flex-direction:column;min-width:0;gap:1px}
@@ -320,7 +321,8 @@ body.side-hidden .side{display:none}
   .layout{flex-wrap:nowrap}
   .side{flex:0 0 232px;max-width:232px;padding:16px 10px 24px}
   .main{flex:1 1 0}
-  .tg{width:34px;height:34px;font-size:19px}
+  .tg{width:34px;height:34px}
+  .tg svg{width:16px;height:16px}
   .main,.wrap{padding:22px 22px 40px}
   .tr{grid-template-columns:minmax(0,1fr) 110px 104px 76px;gap:10px}
   .tr>.c-by{display:none}

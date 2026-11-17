@@ -43,6 +43,7 @@ export function svgIcon(path, size = 18, extra = {}) {
 }
 export const ICON = {
   plus: 'M12 5v14M5 12h14',
+  minus: 'M5 12h14',
   upload: ['M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5', 'M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2'],
   x: 'M6 6l12 12M18 6 6 18',
   folder: 'M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',

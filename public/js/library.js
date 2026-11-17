@@ -65,9 +65,9 @@ function renderTree() {
     const own = direct.get(f.id) || 0;
     const toggle = sub
       ? h('button', {
-          class: 'tg', type: 'button', 'aria-expanded': String(open), 'aria-label': `${open ? 'ย่อ' : 'ขยาย'}โฟลเดอร์ย่อยของ ${f.name}`, title: open ? 'ย่อโฟลเดอร์ย่อย' : `ขยายดูโฟลเดอร์ย่อย (${sub})`, text: open ? '−' : '+',
+          class: 'tg', type: 'button', 'aria-expanded': String(open), 'aria-label': `${open ? 'ย่อ' : 'ขยาย'}โฟลเดอร์ย่อยของ ${f.name}`, title: open ? 'ย่อโฟลเดอร์ย่อย' : `ขยายดูโฟลเดอร์ย่อย (${sub})`,
           onclick: () => { if (open) collapsed.add(f.id); else collapsed.delete(f.id); saveCollapsed(); renderTree(); },
-        })
+        }, svgIcon(open ? ICON.minus : ICON.plus, 14))
       : h('span', { class: 'tg sp' });
     t.append(folderNode(f, h('div', { class: 'fnode', style: `padding-left:${f.depth * 14}px` }, toggle, btn(f.id, f.name, n, `${f.path} — ในโฟลเดอร์นี้ ${own} รายการ${sub ? `, รวมโฟลเดอร์ย่อย ${n} รายการ` : ''}`))));
   }
