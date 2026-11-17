@@ -80,7 +80,7 @@ function renderTree() {
 }
 
 function select(id) {
-  setDrawer(false);
+  if (innerWidth <= 760) setSideHidden(true, false); // มือถือ: เลือกแล้วพับเก็บให้เห็นรายการ
   current = id;
   revealCurrent();
   shown = 100;
@@ -340,30 +340,15 @@ const SIDE_KEY = 'edms.sideHidden';
 function setSideHidden(hide, save = true) {
   document.body.classList.toggle('side-hidden', hide);
   $('sideToggle').setAttribute('aria-expanded', String(!hide));
+  $('folderBtn').setAttribute('aria-expanded', String(!hide));
   $('sideToggleLbl').textContent = hide ? 'แสดงแถบโฟลเดอร์' : 'ซ่อนแถบโฟลเดอร์';
   if (save) { try { localStorage.setItem(SIDE_KEY, hide ? '1' : '0'); } catch { /* ไม่เป็นไร */ } }
 }
 { let hid = false; try { hid = localStorage.getItem(SIDE_KEY) === '1'; } catch { /* ใช้ค่าเริ่มต้น */ } setSideHidden(hid, false); }
 $('sideToggle').addEventListener('click', () => setSideHidden(!document.body.classList.contains('side-hidden')));
 
-// ---------- มือถือ/แท็บเล็ต: ลิ้นชักโฟลเดอร์ + ปุ่มเปิดตัวกรอง ----------
-function setDrawer(open) {
-  document.body.classList.toggle('drawer-open', open);
-  $('scrim').hidden = !open;
-}
-$('folderBtn').addEventListener('click', () => setDrawer(true));
-$('scrim').addEventListener('click', () => setDrawer(false));
-$('sideClose').addEventListener('click', () => setDrawer(false));
-addEventListener('keydown', (e) => { if (e.key === 'Escape') setDrawer(false); });
-// ปัดลิ้นชักไปทางซ้ายเพื่อซ่อน
-{ let sx = 0, sy = 0;
-  const side = document.querySelector('.side');
-  side.addEventListener('touchstart', (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
-  side.addEventListener('touchend', (e) => {
-    const t = e.changedTouches[0];
-    if (document.body.classList.contains('drawer-open') && sx - t.clientX > 70 && Math.abs(t.clientY - sy) < 50) setDrawer(false);
-  }, { passive: true }); }
-addEventListener('resize', () => { if (innerWidth > 1100) setDrawer(false); });
+// ---------- มือถือ: ปุ่มโฟลเดอร์ซ่อน/แสดงแผนผัง + ปุ่มเปิดตัวกรอง ----------
+$('folderBtn').addEventListener('click', () => setSideHidden(!document.body.classList.contains('side-hidden')));
 $('filterBtn').addEventListener('click', () => {
   const open = $('toolbar').classList.toggle('open');
   $('filterBtn').setAttribute('aria-expanded', String(open));

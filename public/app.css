@@ -297,10 +297,10 @@ dialog .acts{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 [data-plain]{box-shadow:none;background:transparent}
 
 /* ---------- แอปบนมือถือ/แท็บเล็ต (responsive) ---------- */
-.tabbar,.scrim,.folderbtn,.mobrow,.sideclose,.filterbtn{display:none}
+.tabbar,.folderbtn,.mobrow,.filterbtn{display:none}
 .sidetoggle{display:inline-flex;align-items:center;gap:8px}
-/* จอใหญ่: ซ่อนแถบโฟลเดอร์ซ้ายทั้งแถบ ให้พื้นที่รายการกว้างขึ้น */
-@media (min-width:1101px){body.side-hidden .side{display:none}}
+/* ซ่อนแถบโฟลเดอร์ทั้งแถบ (ทุกขนาดจอ) ให้พื้นที่รายการกว้างขึ้น */
+body.side-hidden .side{display:none}
 .fbox{display:contents}
 
 /* จอไม่กว้างมาก: ซ่อนคอลัมน์เลขที่/ขนาด เพื่อให้ชื่อเอกสารมีที่พอ */
@@ -309,21 +309,15 @@ dialog .acts{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
   .tr>.c-no,.tr>.c-size{display:none}
 }
 
-/* แท็บเล็ต/จอเล็ก: โฟลเดอร์ซ้ายกลายเป็นลิ้นชักเลื่อนเข้าจากซ้าย */
+/* แท็บเล็ต/จอเล็ก: โฟลเดอร์อยู่ซ้ายแบบแคบลง (ซ่อนได้ด้วยปุ่ม) */
 @media (max-width:1100px){
-  .side{position:fixed;inset:0 auto 0 0;width:min(86vw,320px);max-width:none;z-index:40;flex:none;overflow-y:auto;overscroll-behavior:contain;transform:translateX(-105%);visibility:hidden;transition:transform .25s var(--ease),visibility 0s .25s;padding:calc(18px + env(safe-area-inset-top)) 14px calc(28px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
-  body.drawer-open .side{transform:none;visibility:visible;transition:transform .25s var(--ease);box-shadow:8px 0 40px rgba(11,24,48,.35)}
-  .scrim{display:block;position:fixed;inset:0;z-index:39;background:rgba(11,24,48,.5);backdrop-filter:blur(2px);animation:fade .2s}
-  .sideclose{display:flex;position:absolute;top:calc(10px + env(safe-area-inset-top));right:10px;width:44px;height:44px;border:0;border-radius:50%;background:var(--w12);color:#fff;align-items:center;justify-content:center;cursor:pointer}
-  .side .cap{padding-right:52px}
-  .mobrow{display:flex;gap:8px}
-  .sidetoggle{display:none}
-  .folderbtn{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%}
-  .folderbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .layout{flex-wrap:nowrap}
+  .side{flex:0 0 232px;max-width:232px;padding:16px 10px 24px}
+  .main{flex:1 1 0}
   .tg{width:34px;height:34px;font-size:19px}
   .main,.wrap{padding:22px 22px 40px}
-  .tr{grid-template-columns:minmax(0,1fr) 110px 150px 104px 76px;gap:10px}
-  .tr .c-by .ini{display:none}
+  .tr{grid-template-columns:minmax(0,1fr) 110px 104px 76px;gap:10px}
+  .tr>.c-by{display:none}
 }
 @media (min-width:1101px) and (max-width:1400px){.topin{flex-wrap:nowrap}.banner{flex:1 1 0}.banner>div:last-child{min-width:0}.banner .t1,.banner .t2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 @media (max-width:900px){.banner .t2{display:none}}
@@ -331,6 +325,13 @@ dialog .acts{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 /* มือถือ */
 @media (max-width:760px){
   body{padding-bottom:calc(68px + env(safe-area-inset-bottom))}
+  /* มือถือ: แผนผังโฟลเดอร์วางเหนือรายการ เลื่อนดูได้ ซ่อนด้วยปุ่มโฟลเดอร์ */
+  .layout{flex-direction:column}
+  .side{flex:none;max-width:none;max-height:40vh;overflow-y:auto;overscroll-behavior:contain;margin:12px 14px 0;border-radius:18px;padding:10px 8px 14px}
+  .mobrow{display:flex;gap:8px}
+  .folderbtn{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%}
+  .folderbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sidetoggle{display:none}
   .top{padding-top:env(safe-area-inset-top)}
   .topin{padding:8px 14px;gap:10px;flex-wrap:nowrap}
   .banner{flex:1 1 0;gap:10px}
