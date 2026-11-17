@@ -234,11 +234,53 @@ await page.locator('#tree .tg[aria-expanded=false] >> nth=0').click();
 console.log('after expand all:', await page.locator('#tree .fbtn').count(), '| row folder label:', await page.locator('#tbl .fp').first().textContent());
 await shot(page, '17-tree-expanded');
 
+// ---- ลากวางย้ายเอกสาร/โฟลเดอร์ ----
+await page.goto(url + '/');
+await page.waitForSelector('#tbl .tr:not(.head)');
+const mkFolder = async (name) => page.evaluate(async (n) => { const b = await (await fetch('/api/bootstrap')).json(); const r = await fetch('/api/folders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: n, parent_id: b.root_id }) }); return (await r.json()).folder.id; }, name);
+const fidA = await mkFolder('ปลายทาง A');
+const fidB = await mkFolder('ปลายทาง B');
+await page.reload();
+await page.waitForSelector(`#tree .fnode[data-fid="${fidA}"]`);
+const docsBefore = await page.locator('#tbl .tr:not(.head)').count();
+console.log('drag hint visible:', await page.locator('.dndhint').isVisible(), '| draggable rows:', await page.locator('#tbl .tr[draggable=true]').count());
+const firstTitle = (await page.locator('#tbl .tr:not(.head) .t >> nth=0').textContent()).trim();
+await page.locator('#tbl .tr:not(.head) >> nth=0').dragTo(page.locator(`#tree .fnode[data-fid="${fidA}"]`));
+await page.waitForSelector('.toast');
+console.log('doc drag toast:', await page.locator('.toast').first().textContent());
+await page.waitForTimeout(150);
+const moved = await page.evaluate(async (t) => (await (await fetch('/api/documents')).json()).documents.find((d) => d.title === t)?.folder_id, firstTitle);
+console.log('doc moved to folder A:', moved === fidA);
+await shot(page, '18-after-doc-drag');
+// ลากโฟลเดอร์ B ไปไว้ใต้ A (มีหน้ายืนยัน)
+await page.locator(`#tree .fnode[data-fid="${fidB}"]`).dragTo(page.locator(`#tree .fnode[data-fid="${fidA}"]`));
+await page.waitForSelector('dialog');
+console.log('folder move confirm:', (await page.textContent('dialog h2')) + ' | ' + (await page.textContent('dialog p, dialog .msg').catch(() => '')).slice(0, 60));
+await shot(page, '19-folder-drag-confirm');
+await page.click('dialog button[type=submit]');
+await page.waitForSelector('dialog', { state: 'detached' });
+await page.waitForTimeout(300);
+const pB = await page.evaluate(async (id) => (await (await fetch('/api/bootstrap')).json()).folders.find((f) => f.id === id)?.parent_id, fidB);
+console.log('folder B now under A:', pB === fidA);
+// ลากโฟลเดอร์ A ไปไว้ใต้ B (ลูกของตัวเอง) ต้องไม่อนุญาต
+await page.locator(`#tree .fnode[data-fid="${fidA}"]`).dragTo(page.locator(`#tree .fnode[data-fid="${fidB}"]`));
+await page.waitForTimeout(250);
+console.log('no dialog when dropping into own child:', (await page.locator('dialog').count()) === 0);
+// ปุ่มย้าย (เมนู) ของเอกสาร + ย้ายโฟลเดอร์จากหัวหน้า
+await page.locator('#tbl .tr:not(.head) .iconbtn[title*="ไปโฟลเดอร์อื่น"] >> nth=0').click();
+console.log('move dialog options:', await page.locator('#mv-doc option').count());
+await page.keyboard.press('Escape');
+await page.waitForSelector('dialog', { state: 'detached' });
+await page.locator(`#tree .fnode[data-fid="${fidB}"] .fbtn`).click();
+await page.click('#mvFolder');
+console.log('folder move dialog excludes self:', (await page.locator('#mv-fo option', { hasText: 'ปลายทาง B' }).count()) === 0);
+await page.keyboard.press('Escape');
+
 // ---- แก้ชื่อ/ลบ ไฟล์และโฟลเดอร์ จากหน้าคลัง (เดสก์ท็อป) ----
 await page.goto(url + '/');
 await page.waitForSelector('#tbl .tr:not(.head)');
 const before = await page.locator('#tbl .tr:not(.head)').count();
-await page.locator('#tbl .tr:not(.head) .iconbtn >> nth=0').click(); // เปลี่ยนชื่อไฟล์แถวแรก
+await page.locator('#tbl .tr:not(.head) .iconbtn[title^="เปลี่ยนชื่อไฟล์"] >> nth=0').click(); // เปลี่ยนชื่อไฟล์แถวแรก
 await page.fill('#ask-in', 'ชื่อที่เปลี่ยนจากหน้ารายการ');
 await page.click('dialog button[type=submit]');
 await page.waitForSelector('dialog', { state: 'detached' });

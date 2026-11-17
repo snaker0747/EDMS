@@ -1,4 +1,4 @@
-import { h, api, init, toast, askText, confirmBox, renameFolderDialog, deleteFolderDialog, folderTree, descendantIds, fmtSize, fmtUploadDate, extBadge, highlight, initials, svgIcon, ICON, qs } from './common.js';
+import { h, api, init, toast, askText, confirmBox, openDialog, folderSelect, renameFolderDialog, deleteFolderDialog, folderTree, descendantIds, fmtSize, fmtUploadDate, extBadge, highlight, initials, svgIcon, ICON, qs } from './common.js';
 
 // ขอรายการเอกสารพร้อมกับข้อมูลเริ่มต้น ไม่ต้องรอกันทีละอย่าง
 const docsReq = api('GET', '/api/documents');
@@ -69,8 +69,109 @@ function renderTree() {
           onclick: () => { if (open) collapsed.add(f.id); else collapsed.delete(f.id); saveCollapsed(); renderTree(); },
         })
       : h('span', { class: 'tg sp' });
-    t.append(h('div', { class: 'fnode', style: `padding-left:${f.depth * 14}px` }, toggle, btn(f.id, f.name, n, `${f.path} — ในโฟลเดอร์นี้ ${own} รายการ${sub ? `, รวมโฟลเดอร์ย่อย ${n} รายการ` : ''}`)));
+    t.append(folderNode(f, h('div', { class: 'fnode', style: `padding-left:${f.depth * 14}px` }, toggle, btn(f.id, f.name, n, `${f.path} — ในโฟลเดอร์นี้ ${own} รายการ${sub ? `, รวมโฟลเดอร์ย่อย ${n} รายการ` : ''}`))));
   }
+}
+
+// ---------- ย้ายเอกสาร/โฟลเดอร์: ลากไปวางบนโฟลเดอร์ในแผนผัง หรือกดปุ่ม "ย้าย" ----------
+let dragging = null; // { kind: 'doc' | 'folder', id }
+const folderById = (id) => folders.find((x) => x.id === id);
+
+// ย้ายเอกสารเข้าโฟลเดอร์ (เจ้าของเอกสารหรือผู้ดูแล)
+async function moveDocTo(d, folderId) {
+  const target = folderById(folderId);
+  if (!target || folderId === d.folder_id) return false;
+  const r = await api('POST', `/api/documents/${encodeURIComponent(d.id)}/move`, { folder_id: folderId });
+  docs = docs.map((x) => (x.id === d.id ? r.document : x));
+  renderTree();
+  render();
+  toast(`ย้าย "${d.title}" ไปที่ ${folderLabel(folderId).text} แล้ว`);
+  return true;
+}
+function moveDocDialog(d) {
+  const sel = folderSelect(folders, { value: d.folder_id, id: 'mv-doc' });
+  openDialog('ย้ายเอกสารไปโฟลเดอร์', [
+    h('div', { class: 'muted', style: 'margin-bottom:8px', text: d.title }),
+    h('div', { class: 'field' }, h('label', { for: 'mv-doc', text: 'ย้ายไปที่' }), sel),
+  ], { okText: 'ย้าย', onOk: async () => { await moveDocTo(d, sel.value); return true; } });
+}
+
+// ย้ายโฟลเดอร์ไปไว้ใต้โฟลเดอร์อื่น (ผู้ดูแลระบบ) เอกสารและโฟลเดอร์ย่อยข้างในย้ายตามไปทั้งหมด
+function canDropFolder(f, targetId) {
+  if (!isAdmin || !f || f.id === boot.root_id) return false;
+  if (targetId === f.parent_id || targetId === f.id) return false;
+  return !descendantIds(folders, f.id).has(targetId);
+}
+async function moveFolderTo(f, targetId) {
+  await api('PATCH', `/api/folders/${encodeURIComponent(f.id)}`, { parent_id: targetId });
+  await reloadAll();
+  toast(`ย้ายโฟลเดอร์ "${f.name}" ไปที่ ${folderLabel(targetId).text} แล้ว`);
+}
+function confirmMoveFolder(f, targetId) {
+  const sub = descendantIds(folders, f.id);
+  const n = docs.filter((d) => sub.has(d.folder_id)).length;
+  confirmBox(`ย้ายโฟลเดอร์ "${f.name}" ไปไว้ใน "${folderLabel(targetId).text}"? เอกสาร ${n} รายการและโฟลเดอร์ย่อยข้างในจะย้ายตามไปด้วย`, 'ย้ายโฟลเดอร์', false, async () => { await moveFolderTo(f, targetId); return true; });
+}
+function moveFolderDialog(f) {
+  const sel = folderSelect(folders, { value: f.parent_id, exclude: descendantIds(folders, f.id), id: 'mv-fo' });
+  openDialog('ย้ายโฟลเดอร์', [
+    h('div', { class: 'muted', style: 'margin-bottom:8px', text: `${f.name} (เอกสารและโฟลเดอร์ย่อยข้างในย้ายตามไปทั้งหมด)` }),
+    h('div', { class: 'field' }, h('label', { for: 'mv-fo', text: 'ย้ายไปไว้ใต้' }), sel),
+  ], { okText: 'ย้าย', onOk: async () => { if (sel.value === f.parent_id) return true; await moveFolderTo(f, sel.value); return true; } });
+}
+
+// ลากด้วยเมาส์ (และการกดค้างลากบนแท็บเล็ตที่เบราว์เซอร์รองรับ)
+const setDragging = (v) => { dragging = v; document.body.classList.toggle('dragging', !!v); if (!v) for (const e of document.querySelectorAll('.dropok,.dropno')) e.classList.remove('dropok', 'dropno'); };
+function docRow(d, row) {
+  if (!canEditDoc(d)) return row;
+  row.draggable = true;
+  row.classList.add('dragsrc');
+  row.addEventListener('dragstart', (e) => {
+    setDragging({ kind: 'doc', id: d.id });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', d.title);
+    row.classList.add('dragged');
+  });
+  row.addEventListener('dragend', () => { row.classList.remove('dragged'); setDragging(null); });
+  return row;
+}
+function dropAllowed(targetId) {
+  if (!dragging) return false;
+  if (dragging.kind === 'doc') { const d = docs.find((x) => x.id === dragging.id); return !!d && d.folder_id !== targetId; }
+  return canDropFolder(folderById(dragging.id), targetId);
+}
+function folderNode(f, node) {
+  if (isAdmin && f.id !== boot.root_id) {
+    node.draggable = true;
+    node.classList.add('dragsrc');
+    node.addEventListener('dragstart', (e) => {
+      setDragging({ kind: 'folder', id: f.id });
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', f.name);
+      node.classList.add('dragged');
+    });
+    node.addEventListener('dragend', () => { node.classList.remove('dragged'); setDragging(null); });
+  }
+  node.dataset.fid = f.id;
+  node.addEventListener('dragover', (e) => {
+    if (!dragging) return;
+    const ok = dropAllowed(f.id);
+    node.classList.toggle('dropok', ok);
+    node.classList.toggle('dropno', !ok);
+    if (ok) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+  });
+  node.addEventListener('dragleave', (e) => { if (!node.contains(e.relatedTarget)) node.classList.remove('dropok', 'dropno'); });
+  node.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const drag = dragging;
+    setDragging(null);
+    if (!drag) return;
+    try {
+      if (drag.kind === 'doc') { const d = docs.find((x) => x.id === drag.id); if (d && d.folder_id !== f.id) await moveDocTo(d, f.id); }
+      else { const src = folderById(drag.id); if (canDropFolder(src, f.id)) confirmMoveFolder(src, f.id); }
+    } catch (ex) { toast(ex.message || 'ย้ายไม่สำเร็จ', true); }
+  });
+  return node;
 }
 
 function select(id) {
@@ -91,6 +192,7 @@ function renderHead() {
   $('lede').textContent = `สวัสดี ${boot.me.display_name} · ${todayTh()}`;
   const manage = !!(f && isAdmin && f.id !== boot.root_id);
   $('renFolder').hidden = !manage;
+  $('mvFolder').hidden = !manage;
   $('delFolder').hidden = !manage;
   $('upBtn').href = current ? `/upload.html?folder=${encodeURIComponent(current)}` : '/upload.html';
 }
@@ -220,6 +322,7 @@ async function reloadAll() {
   render();
 }
 $('renFolder').addEventListener('click', () => { const f = folders.find((x) => x.id === current); if (f) renameFolderDialog(f, reloadAll); });
+$('mvFolder').addEventListener('click', () => { const f = folders.find((x) => x.id === current); if (f) moveFolderDialog(f); });
 $('delFolder').addEventListener('click', () => { const f = folders.find((x) => x.id === current); if (f) deleteFolderDialog(f, folders, reloadAll); });
 
 function renderTypeChips() {
@@ -241,14 +344,14 @@ function render() {
   const list = filtered();
   renderTypeChips();
   renderChips();
-  $('count').replaceChildren('พบ ', h('b', { text: String(list.length) }), ' รายการ');
+  $('count').replaceChildren('พบ ', h('b', { text: String(list.length) }), ' รายการ', list.some(canEditDoc) ? h('span', { class: 'dndhint', text: 'ลากเอกสารไปวางบนโฟลเดอร์ด้านซ้ายเพื่อย้าย' }) : '');
   const q = $('q').value;
   const t = $('tbl');
   t.replaceChildren(h('div', { class: 'tr head' }, ...['ชื่อเอกสาร', 'เลขที่', 'ประเภท', 'ขนาด', 'ผู้อัปโหลด', 'วันที่อัปโหลด', ''].map((x, i) => h('div', { class: ['', 'c-no', 'c-type', 'c-size', 'c-by', 'c-date', 'c-act'][i], text: x }))));
   if (!list.length) t.append(emptyState());
   for (const d of list.slice(0, shown)) {
     t.append(
-      h('div', { class: 'tr' },
+      docRow(d, h('div', { class: 'tr' },
         h('a', { class: 'nm', href: `/doc.html?id=${encodeURIComponent(d.id)}` }, extBadge(d.file_name),
           h('span', { class: 'tt' },
             h('span', { class: 't', title: d.title }, ...highlight(d.title, q)),
@@ -259,10 +362,11 @@ function render() {
         h('div', { class: 'c-by who2' }, h('span', { class: 'ini', 'aria-hidden': 'true', text: initials(d.uploader) }), h('span', { text: d.uploader, title: d.uploader })),
         h('div', { class: 'c-date sub', text: fmtUploadDate(d.uploaded_at) }),
         h('div', { class: 'c-act' }, ...(canEditDoc(d) ? [
+          iconBtn(ICON.move, `ย้าย ${d.title} ไปโฟลเดอร์อื่น`, () => moveDocDialog(d)),
           iconBtn(ICON.edit, `เปลี่ยนชื่อไฟล์ ${d.title}`, () => renameDoc(d)),
           iconBtn(ICON.trash, `ลบ ${d.title}`, () => deleteDoc(d), true),
         ] : []))
-      )
+      ))
     );
   }
   $('more').hidden = list.length <= shown;

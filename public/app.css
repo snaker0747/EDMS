@@ -399,3 +399,15 @@ body.side-hidden .side{display:none}
 }
 @keyframes sheet{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 @media (max-width:760px) and (display-mode:standalone){.me summary{border-color:transparent}}
+
+/* ---------- ลากวางย้ายเอกสาร/โฟลเดอร์ ---------- */
+.dragsrc{cursor:grab}
+.dragsrc:active{cursor:grabbing}
+.tr.dragged,.fnode.dragged{opacity:.45}
+.dndhint{margin-left:12px;font-size:13px;color:var(--text3)}
+.fnode{border-radius:12px;transition:background .12s,box-shadow .12s}
+body.dragging .fnode.dropok{background:rgba(110,168,254,.28);box-shadow:inset 0 0 0 2px #6ea8fe}
+body.dragging .fnode.dropno{opacity:.45;cursor:not-allowed}
+body.dragging .side{outline:2px dashed rgba(110,168,254,.55);outline-offset:-6px}
+@media (max-width:760px){.dndhint{display:none}}
+@media (hover:none){.dndhint{display:none}}
