@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 export function createD1() {
   const db = new DatabaseSync(':memory:');
-  const isSelect = (sql) => /^\s*select/i.test(sql);
+  const isSelect = (sql) => /^\s*(select|pragma)/i.test(sql);
   const exec = (sql, args) => {
     const st = db.prepare(sql);
     if (isSelect(sql)) return { success: true, results: st.all(...args).map((r) => ({ ...r })), meta: {} };

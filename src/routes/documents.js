@@ -1,6 +1,6 @@
 import { HttpError, json, nowIso, safeName, extOf, ALLOWED_TYPES, INLINE_MIME, contentDisposition } from '../util.js';
 import * as G from '../google.js';
-import { listRows, appendRow, updateRow, getSettings, getFolders, logHistory } from '../db.js';
+import { listRows, appendRow, updateRow, setOrders, ord, getSettings, getFolders, logHistory } from '../db.js';
 import { cleanMeta } from '../validate.js';
 
 const parseExtra = (s) => {
@@ -30,6 +30,7 @@ export const publicDoc = (r) => ({
   uploader: r.uploader,
   uploaded_at: r.uploaded_at,
   updated_at: r.updated_at,
+  sort_order: ord(r.sort_order),
 });
 
 async function activeDoc(c, id) {
@@ -200,4 +201,18 @@ export async function fileDoc(c, { id }, request) {
     if (v) headers.set(h, v);
   }
   return new Response(res.body, { status: res.status, headers });
+}
+
+// จัดลำดับเอกสารในโฟลเดอร์เดียวกัน (ผู้ดูแลระบบ): ส่งรหัสเอกสารทั้งหมดในโฟลเดอร์ตามลำดับที่ต้องการ
+export async function reorderDocs(c, _p, request) {
+  const body = await request.json().catch(() => ({}));
+  const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+  const folder = await activeFolder(c, String(body.folder_id || ''));
+  const inFolder = (await listRows(c, 'docs')).filter((r) => r.status !== 'trashed' && r.id && r.folder_id === folder.id).map((r) => r.id);
+  if (!ids.length || new Set(ids).size !== ids.length || ids.length !== inFolder.length || !ids.every((id) => inFolder.includes(id))) {
+    throw new HttpError(400, 'รายการเอกสารไม่ตรงกับโฟลเดอร์ กรุณารีเฟรชหน้าแล้วลองใหม่');
+  }
+  const changed = await setOrders(c, 'docs', ids);
+  if (changed) logHistory(c, 'จัดลำดับเอกสาร', folder.id, folder.name, `${ids.length} รายการ`);
+  return json({ ok: true, changed });
 }

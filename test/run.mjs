@@ -175,6 +175,37 @@ step('เปลี่ยนชื่อโฟลเดอร์ / ย้าย�
 ok(await call('PATCH', `/api/folders/${y2570.id}`, { body: { name: 'ปีงบ 2570', parent_id: letters.id } }));
 assert.equal(mock.files.get(y2570.id).name, 'ปีงบ 2570');
 assert.deepEqual(mock.files.get(y2570.id).parents, [letters.id]);
+step('จัดลำดับเอง: โฟลเดอร์ + เอกสาร (เฉพาะผู้ดูแล) เก็บค่าและไม่ซ้ำซ้อน');
+{
+  r = await call('GET', '/api/bootstrap'); ok(r);
+  const kids = r.data.folders.filter((f) => f.parent_id === 'ROOT');
+  assert.ok(kids.length >= 2, 'ต้องมีโฟลเดอร์ย่อยอย่างน้อย 2');
+  assert.equal(kids[0].sort_order, null, 'ยังไม่เคยจัดลำดับ = null');
+  const ids = kids.map((f) => f.id).reverse();
+  ok(await call('POST', '/api/folders/reorder', { body: { parent_id: 'ROOT', ids: ids.slice(1) } }), 400); // ไม่ครบทุกโฟลเดอร์
+  ok(await call('POST', '/api/folders/reorder', { body: { parent_id: 'ROOT', ids: [...ids.slice(1), 'ปลอม'] } }), 400);
+  r = await call('POST', '/api/folders/reorder', { body: { parent_id: 'ROOT', ids } }); ok(r);
+  assert.equal(r.data.changed, ids.length);
+  r = await call('GET', '/api/bootstrap');
+  const got = r.data.folders.filter((f) => f.parent_id === 'ROOT').sort((a, b) => a.sort_order - b.sort_order).map((f) => f.id);
+  assert.deepEqual(got, ids, 'ลำดับโฟลเดอร์ตรงที่ส่งไป');
+  r = await call('POST', '/api/folders/reorder', { body: { parent_id: 'ROOT', ids } }); ok(r);
+  assert.equal(r.data.changed, 0, 'ส่งซ้ำ = ไม่แก้อะไร');
+  // เอกสาร: ใส่เพิ่มอีก 1 ไฟล์ในโฟลเดอร์เดียวกันแล้วสลับที่
+  r = await call('POST', '/api/documents', { form: uploadForm({ ...goodMeta, title: 'ไฟล์ที่สอง', folder_id: y2570.id }) }); ok(r, 201);
+  const second = r.data.document;
+  r = await call('GET', '/api/documents');
+  const inF = r.data.documents.filter((d) => d.folder_id === y2570.id).map((d) => d.id);
+  assert.equal(inF.length, 2);
+  ok(await call('POST', '/api/documents/reorder', { body: { folder_id: y2570.id, ids: [inF[0]] } }), 400);
+  const want = [second.id, doc.id];
+  r = await call('POST', '/api/documents/reorder', { body: { folder_id: y2570.id, ids: want } }); ok(r);
+  r = await call('GET', '/api/documents');
+  const byOrd = r.data.documents.filter((d) => d.folder_id === y2570.id).sort((a, b) => a.sort_order - b.sort_order).map((d) => d.id);
+  assert.deepEqual(byOrd, want);
+  ok(await call('POST', '/api/documents/reorder', { body: { folder_id: y2570.id, ids: want } }));
+}
+
 step('ลบโฟลเดอร์ที่ยังมีเอกสาร = 409 / โฟลเดอร์หลัก = 400');
 ok(await call('DELETE', `/api/folders/${y2570.id}`), 409);
 ok(await call('DELETE', '/api/folders/ROOT'), 400);
@@ -203,6 +234,8 @@ ok(await call('PUT', '/api/settings', { body: { doc_types: ['x'] } }), 403);
 ok(await call('DELETE', `/api/documents/${doc.id}`), 403);
 ok(await call('PATCH', `/api/folders/${projects.id}`, { body: { name: 'x' } }), 403);
 ok(await call('POST', '/api/admin/sync', { body: {} }), 403);
+ok(await call('POST', '/api/folders/reorder', { body: { parent_id: 'ROOT', ids: ['x'] } }), 403);
+ok(await call('POST', '/api/documents/reorder', { body: { folder_id: 'ROOT', ids: ['x'] } }), 403);
 r = await call('POST', '/api/folders', { body: { name: 'โฟลเดอร์ของสมชาย', parent_id: 'ROOT' } }); ok(r, 201);
 r = await call('POST', '/api/documents', { form: uploadForm({ ...goodMeta, title: 'ของสมชาย' }) }); ok(r, 201);
 const somchaiDoc = r.data.document;

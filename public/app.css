@@ -411,3 +411,11 @@ body.dragging .fnode.dropno{opacity:.45;cursor:not-allowed}
 body.dragging .side{outline:2px dashed rgba(110,168,254,.55);outline-offset:-6px}
 @media (max-width:760px){.dndhint{display:none}}
 @media (hover:none){.dndhint{display:none}}
+.tr.drop-before,.fnode.drop-before{box-shadow:inset 0 3px 0 #6ea8fe}
+.tr.drop-after,.fnode.drop-after{box-shadow:inset 0 -3px 0 #6ea8fe}
+.tr.dropno{cursor:not-allowed;background:rgba(220,38,38,.06)}
+.btn.sq{padding:0;width:44px;justify-content:center;flex:none}
+.btn.sq:disabled{opacity:.35;cursor:default}
+.btnpair{display:inline-flex;gap:6px}
+.btnpair[hidden]{display:none}
+@media (max-width:760px){.row.spread>.row>.btnpair{flex:none}}

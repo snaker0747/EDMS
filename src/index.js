@@ -44,6 +44,7 @@ add('POST', '/api/documents', 'user', Docs.createDoc);
 add('GET', '/api/documents/:id', 'user', Docs.getDoc);
 add('PATCH', '/api/documents/:id', 'user', Docs.updateDoc);
 add('DELETE', '/api/documents/:id', 'user', Docs.trashDoc); // เจ้าของเอกสารหรือผู้ดูแลเท่านั้น (ตรวจใน handler)
+add('POST', '/api/documents/reorder', 'admin', Docs.reorderDocs);
 add('POST', '/api/documents/:id/move', 'user', Docs.moveDoc);
 add('POST', '/api/documents/:id/replace', 'user', Docs.replaceDoc);
 add('GET', '/api/documents/:id/history', 'user', Docs.docHistory);
@@ -51,6 +52,7 @@ add('GET', '/api/documents/:id/file', 'user', Docs.fileDoc);
 
 add('GET', '/api/folders', 'user', Folders.listFolders);
 add('POST', '/api/folders', 'user', Folders.createFolder);
+add('POST', '/api/folders/reorder', 'admin', Folders.reorderFolders);
 add('PATCH', '/api/folders/:id', 'admin', Folders.updateFolder);
 add('DELETE', '/api/folders/:id', 'admin', Folders.deleteFolder);
 

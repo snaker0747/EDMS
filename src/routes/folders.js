@@ -1,6 +1,6 @@
 import { HttpError, json, nowIso, safeName } from '../util.js';
 import * as G from '../google.js';
-import { listRows, appendRow, updateRow, getFolders, logHistory } from '../db.js';
+import { listRows, appendRow, updateRow, setOrders, getFolders, logHistory } from '../db.js';
 
 export async function folderPayload(c) {
   const folders = await getFolders(c);
@@ -107,4 +107,21 @@ export async function deleteFolder(c, { id }, request) {
   for (const r of rows) if (ids.has(r.id)) await updateRow(c, 'folders', r, { status: 'deleted' });
   logHistory(c, 'ลบโฟลเดอร์', id, cur.name, ids.size > 1 || docs.length ? `พร้อมโฟลเดอร์ย่อย ${ids.size - 1} และเอกสาร ${docs.length} รายการ` : '');
   return json({ ok: true, folders_deleted: ids.size, documents_deleted: docs.length });
+}
+
+// จัดลำดับโฟลเดอร์ย่อยที่อยู่ใต้โฟลเดอร์เดียวกัน (ผู้ดูแลระบบ): ส่งรหัสโฟลเดอร์ย่อยทั้งหมดตามลำดับที่ต้องการ
+export async function reorderFolders(c, _p, request) {
+  const body = await request.json().catch(() => ({}));
+  const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+  const parentId = String(body.parent_id || '');
+  const folders = await getFolders(c);
+  const parent = folders.find((f) => f.id === parentId);
+  if (!parent) throw new HttpError(400, 'ไม่พบโฟลเดอร์แม่');
+  const kids = folders.filter((f) => f.parent_id === parentId).map((f) => f.id);
+  if (!ids.length || new Set(ids).size !== ids.length || ids.length !== kids.length || !ids.every((id) => kids.includes(id))) {
+    throw new HttpError(400, 'รายการโฟลเดอร์ไม่ตรงกับในระบบ กรุณารีเฟรชหน้าแล้วลองใหม่');
+  }
+  const changed = await setOrders(c, 'folders', ids);
+  if (changed) logHistory(c, 'จัดลำดับโฟลเดอร์', parent.id, parent.name, `${ids.length} โฟลเดอร์`);
+  return json({ ok: true, changed });
 }

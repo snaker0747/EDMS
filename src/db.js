@@ -27,6 +27,7 @@ export const SCHEMA = {
       ['uploaded_at', 'วันที่อัปโหลด'],
       ['updated_at', 'แก้ไขล่าสุด'],
       ['status', 'สถานะ'],
+      ['sort_order', 'ลำดับ'],
     ],
   },
   folders: {
@@ -38,6 +39,7 @@ export const SCHEMA = {
       ['created_by', 'ผู้สร้าง'],
       ['created_at', 'วันที่สร้าง'],
       ['status', 'สถานะ'],
+      ['sort_order', 'ลำดับ'],
     ],
   },
   settings: {
@@ -91,6 +93,20 @@ export function colLetter(n) {
 export const PK = { docs: 'id', folders: 'id', settings: 'key', users: 'username' };
 export const SYNC_KEYS = ['docs', 'folders', 'settings', 'users'];
 const q = (s) => `"${s}"`;
+
+// เลขลำดับที่ผู้ดูแลจัดไว้ ('' = ยังไม่ได้จัด → null)
+export const ord = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+
+// เพิ่มคอลัมน์ใหม่ให้ตารางเดิมใน D1 (เมื่ออัปเดตระบบแล้วมีช่องเพิ่ม)
+export async function migrateColumns(env) {
+  for (const key of SYNC_KEYS) {
+    const { results } = await env.DB.prepare(`PRAGMA table_info(${q(key)})`).all();
+    const have = new Set(results.map((r) => r.name));
+    for (const [k] of SCHEMA[key].cols) {
+      if (!have.has(k)) await env.DB.prepare(`ALTER TABLE ${q(key)} ADD COLUMN ${q(k)} TEXT NOT NULL DEFAULT ''`).run();
+    }
+  }
+}
 
 export function ddl() {
   const out = [];
@@ -238,6 +254,21 @@ export async function updateRow(c, key, row, patch) {
   return { ...row, ...patch };
 }
 
+// เขียนเลขลำดับหลายแถวในคำสั่งเดียว (เฉพาะแถวที่ค่าเปลี่ยน) คืนจำนวนแถวที่แก้
+export async function setOrders(c, key, ids) {
+  const rows = new Map((await listRows(c, key)).map((r) => [r[PK[key]], r]));
+  const stmts = [];
+  ids.forEach((id, i) => {
+    const row = rows.get(id);
+    const v = String(i + 1);
+    if (row && row.sort_order !== v) stmts.push(c.env.DB.prepare(`UPDATE ${q(key)} SET sort_order = ?, _d = 1, _v = _v + 1 WHERE ${q(PK[key])} = ?`).bind(v, id));
+  });
+  if (stmts.length) await c.env.DB.batch([...stmts, c.env.DB.prepare(BUMP)]);
+  c.cache.delete(key);
+  c.dirty = true;
+  return stmts.length;
+}
+
 // ---------- ผู้ใช้ ----------
 export const getUsers = (c) => listRows(c, 'users');
 
@@ -287,7 +318,7 @@ export async function getFolders(c) {
     }
     return names.join(' › ');
   };
-  return rows.map((r) => ({ id: r.id, name: r.name, parent_id: r.parent_id, created_by: r.created_by, created_at: r.created_at, path: pathOf(r) }));
+  return rows.map((r) => ({ id: r.id, name: r.name, parent_id: r.parent_id, created_by: r.created_by, created_at: r.created_at, sort_order: ord(r.sort_order), path: pathOf(r) }));
 }
 
 // ---------- ประวัติ ----------

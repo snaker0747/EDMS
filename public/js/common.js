@@ -56,6 +56,8 @@ export const ICON = {
   edit: ['M4 20h4L19 9l-4-4L4 16z', 'M13.5 6.5l4 4'],
   trash: ['M4 7h16', 'M9 7V4h6v3', 'M6 7l1 13h10l1-13', 'M10 11v5', 'M14 11v5'],
   move: ['M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V11', 'M3 7v11a2 2 0 0 0 2 2h7', 'M15 17h7m0 0-2.5-2.5M22 17l-2.5 2.5'],
+  up: 'M6 15l6-6 6 6',
+  down: 'M6 9l6 6 6-6',
   files: ['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z', 'M14 3v5h5'],
 };
 
@@ -199,6 +201,11 @@ export function askText({ title, label, value = '', okText = 'บันทึก
 
 // ---------- โฟลเดอร์ ----------
 // คืนรายการโฟลเดอร์เรียงเป็นต้นไม้ (depth-first) พร้อมความลึก
+// ลำดับโฟลเดอร์ย่อย: ตามเลขลำดับที่ผู้ดูแลจัดไว้ ที่ยังไม่จัดอยู่ท้าย เรียงตามชื่อ ก-ฮ
+export const folderOrder = (a, b) => {
+  const x = a.sort_order ?? Infinity, y = b.sort_order ?? Infinity;
+  return x !== y ? (x < y ? -1 : 1) : a.name.localeCompare(b.name, 'th');
+};
 export function folderTree(folders) {
   const kids = new Map();
   for (const f of folders) {
@@ -209,7 +216,7 @@ export function folderTree(folders) {
   const ids = new Set(folders.map((f) => f.id));
   const out = [];
   const walk = (parent, depth) => {
-    const list = (kids.get(parent) || []).sort((a, b) => a.name.localeCompare(b.name, 'th'));
+    const list = (kids.get(parent) || []).sort(folderOrder);
     for (const f of list) {
       out.push({ ...f, depth });
       walk(f.id, depth + 1);

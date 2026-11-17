@@ -9,7 +9,7 @@
 // ประวัติการใช้งาน (history) ส่งไปชีตทางเดียว
 import { HttpError } from './util.js';
 import * as G from './google.js';
-import { SCHEMA, PK, SYNC_KEYS, ddl, makeCtx, getMeta, setMeta, getSheetId, colLetter } from './db.js';
+import { SCHEMA, PK, SYNC_KEYS, ddl, migrateColumns, makeCtx, getMeta, setMeta, getSheetId, colLetter } from './db.js';
 
 const q = (s) => `"${s}"`;
 const LOCK_MS = 50_000;
@@ -74,6 +74,7 @@ export async function ensureReady(c, { lenient = false } = {}) {
     init = null;
   }
   if (init === '1') {
+    await migrateColumns(env);
     readyDbs.add(env.DB);
     return;
   }

@@ -1,4 +1,4 @@
-import { h, api, init, toast, askText, confirmBox, openDialog, folderSelect, renameFolderDialog, deleteFolderDialog, folderTree, descendantIds, fmtSize, fmtUploadDate, extBadge, highlight, initials, svgIcon, ICON, qs } from './common.js';
+import { h, api, init, toast, askText, confirmBox, openDialog, folderSelect, renameFolderDialog, deleteFolderDialog, folderTree, folderOrder, descendantIds, fmtSize, fmtUploadDate, extBadge, highlight, initials, svgIcon, ICON, qs } from './common.js';
 
 // ขอรายการเอกสารพร้อมกับข้อมูลเริ่มต้น ไม่ต้องรอกันทีละอย่าง
 const docsReq = api('GET', '/api/documents');
@@ -120,8 +120,91 @@ function moveFolderDialog(f) {
   ], { okText: 'ย้าย', onOk: async () => { if (sel.value === f.parent_id) return true; await moveFolderTo(f, sel.value); return true; } });
 }
 
-// ลากด้วยเมาส์ (และการกดค้างลากบนแท็บเล็ตที่เบราว์เซอร์รองรับ)
-const setDragging = (v) => { dragging = v; document.body.classList.toggle('dragging', !!v); if (!v) for (const e of document.querySelectorAll('.dropok,.dropno')) e.classList.remove('dropok', 'dropno'); };
+// ---------- จัดลำดับเอง (ผู้ดูแลระบบ): โฟลเดอร์ย่อยในแผนผัง + เอกสารในโฟลเดอร์เดียวกัน ----------
+const manualMode = () => $('f-sort').value === 'manual';
+const siblingsOf = (parentId, exceptId) => folders.filter((f) => f.parent_id === parentId && f.id !== exceptId).sort(folderOrder);
+
+// วางโฟลเดอร์ก่อน/หลังโฟลเดอร์เป้าหมาย (ถ้าอยู่คนละโฟลเดอร์แม่ จะย้ายมาอยู่ใต้โฟลเดอร์แม่ของเป้าหมายด้วย)
+async function placeFolder(src, target, where) {
+  const parentId = target.parent_id;
+  if (src.parent_id !== parentId) await api('PATCH', `/api/folders/${encodeURIComponent(src.id)}`, { parent_id: parentId });
+  const sibs = siblingsOf(parentId, src.id);
+  sibs.splice(sibs.findIndex((f) => f.id === target.id) + (where === 'after' ? 1 : 0), 0, src);
+  await api('POST', '/api/folders/reorder', { parent_id: parentId, ids: sibs.map((f) => f.id) });
+  await reloadAll();
+  toast(`จัดลำดับโฟลเดอร์ "${src.name}" แล้ว`);
+}
+function canPlaceFolder(src, target) {
+  if (!isAdmin || !src || src.id === boot.root_id || !target || target.id === boot.root_id) return false;
+  return target.id !== src.id && !descendantIds(folders, src.id).has(target.id);
+}
+// เลื่อนโฟลเดอร์ที่เลือกขึ้น/ลง 1 ตำแหน่งในกลุ่มเดียวกัน (ใช้ปุ่มแทนการลาก ได้ทั้งมือถือ/แท็บเล็ต)
+async function shiftFolder(dir) {
+  const f = folderById(current);
+  if (!f) return;
+  const sibs = siblingsOf(f.parent_id);
+  const i = sibs.findIndex((x) => x.id === f.id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= sibs.length) return;
+  [sibs[i], sibs[j]] = [sibs[j], sibs[i]];
+  await api('POST', '/api/folders/reorder', { parent_id: f.parent_id, ids: sibs.map((x) => x.id) });
+  await reloadAll();
+}
+$('upFolder').addEventListener('click', () => shiftFolder(-1).catch((e) => toast(e.message, true)));
+$('dnFolder').addEventListener('click', () => shiftFolder(1).catch((e) => toast(e.message, true)));
+function updateShiftButtons() {
+  const f = folderById(current);
+  const show = !!(f && isAdmin && f.id !== boot.root_id);
+  $('shiftBtns').hidden = !show;
+  if (!show) return;
+  const sibs = siblingsOf(f.parent_id);
+  const i = sibs.findIndex((x) => x.id === f.id);
+  $('upFolder').disabled = i <= 0;
+  $('dnFolder').disabled = i < 0 || i >= sibs.length - 1;
+}
+
+// เอกสารในโฟลเดอร์หนึ่ง เรียงตามลำดับที่จัดไว้ (ที่ยังไม่จัดอยู่ท้าย ใหม่ก่อน)
+const docOrder = (a, b) => {
+  const x = a.sort_order ?? Infinity, y = b.sort_order ?? Infinity;
+  return x !== y ? (x < y ? -1 : 1) : String(b.uploaded_at).localeCompare(String(a.uploaded_at));
+};
+const docsInFolder = (fid) => docs.filter((d) => d.folder_id === fid).sort(docOrder);
+async function saveDocOrder(fid, list) {
+  await api('POST', '/api/documents/reorder', { folder_id: fid, ids: list.map((d) => d.id) });
+  const pos = new Map(list.map((d, i) => [d.id, i + 1]));
+  docs = docs.map((d) => (pos.has(d.id) ? { ...d, sort_order: pos.get(d.id) } : d));
+  render();
+}
+async function placeDoc(src, target, where) {
+  if (src.folder_id !== target.folder_id) { toast('จัดลำดับได้เฉพาะเอกสารที่อยู่ในโฟลเดอร์เดียวกัน', true); return; }
+  const list = docsInFolder(src.folder_id).filter((d) => d.id !== src.id);
+  list.splice(list.findIndex((d) => d.id === target.id) + (where === 'after' ? 1 : 0), 0, src);
+  await saveDocOrder(src.folder_id, list);
+}
+async function shiftDoc(d, dir) {
+  const list = docsInFolder(d.folder_id);
+  const i = list.findIndex((x) => x.id === d.id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  await saveDocOrder(d.folder_id, list);
+}
+
+// ---------- ลากด้วยเมาส์ (และการกดค้างลากบนแท็บเล็ตที่เบราว์เซอร์รองรับ) ----------
+const clearZones = () => { for (const e of document.querySelectorAll('.dropok,.dropno,.drop-before,.drop-after')) e.classList.remove('dropok', 'dropno', 'drop-before', 'drop-after'); };
+const setDragging = (v) => { dragging = v; document.body.classList.toggle('dragging', !!v); if (!v) clearZones(); };
+function showZone(el, zone) {
+  el.classList.toggle('dropok', zone === 'into');
+  el.classList.toggle('dropno', zone === 'no');
+  el.classList.toggle('drop-before', zone === 'before');
+  el.classList.toggle('drop-after', zone === 'after');
+}
+function zoneOf(e, el, allowInto) {
+  const r = el.getBoundingClientRect();
+  const y = (e.clientY - r.top) / Math.max(1, r.height);
+  if (!allowInto) return y < 0.5 ? 'before' : 'after';
+  return y < 0.28 ? 'before' : y > 0.72 ? 'after' : 'into';
+}
 function docRow(d, row) {
   if (!canEditDoc(d)) return row;
   row.draggable = true;
@@ -133,12 +216,39 @@ function docRow(d, row) {
     row.classList.add('dragged');
   });
   row.addEventListener('dragend', () => { row.classList.remove('dragged'); setDragging(null); });
+  // จัดลำดับ: วางบนแถวอื่นในโหมด "ลำดับที่กำหนดเอง" (ผู้ดูแลระบบ)
+  if (isAdmin) {
+    row.addEventListener('dragover', (e) => {
+      if (!dragging || dragging.kind !== 'doc' || !manualMode() || dragging.id === d.id) return;
+      const src = docs.find((x) => x.id === dragging.id);
+      if (!src || src.folder_id !== d.folder_id) { showZone(row, 'no'); return; }
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      showZone(row, zoneOf(e, row, false));
+    });
+    row.addEventListener('dragleave', (e) => { if (!row.contains(e.relatedTarget)) showZone(row, null); });
+    row.addEventListener('drop', async (e) => {
+      if (!dragging || dragging.kind !== 'doc' || !manualMode() || dragging.id === d.id) return;
+      e.preventDefault();
+      const src = docs.find((x) => x.id === dragging.id);
+      const where = zoneOf(e, row, false);
+      setDragging(null);
+      try { if (src) await placeDoc(src, d, where); } catch (ex) { toast(ex.message || 'จัดลำดับไม่สำเร็จ', true); }
+    });
+  }
   return row;
 }
-function dropAllowed(targetId) {
-  if (!dragging) return false;
-  if (dragging.kind === 'doc') { const d = docs.find((x) => x.id === dragging.id); return !!d && d.folder_id !== targetId; }
-  return canDropFolder(folderById(dragging.id), targetId);
+// โฟลเดอร์ในแผนผัง: วางตรงกลาง = ย้ายเข้าไปข้างใน / วางที่ขอบบน-ล่าง = จัดลำดับก่อน-หลัง
+function folderZone(f, e, node) {
+  if (!dragging) return null;
+  if (dragging.kind === 'doc') { const d = docs.find((x) => x.id === dragging.id); return d && d.folder_id !== f.id ? 'into' : 'no'; }
+  const src = folderById(dragging.id);
+  if (!src) return 'no';
+  const into = canDropFolder(src, f.id);
+  const edge = f.id !== boot.root_id && canPlaceFolder(src, f);
+  const z = zoneOf(e, node, into); // ย้ายเข้าข้างในไม่ได้ → แบ่งแค่ครึ่งบน/ครึ่งล่าง
+  if (z === 'into') return 'into';
+  return edge ? z : into ? 'into' : 'no';
 }
 function folderNode(f, node) {
   if (isAdmin && f.id !== boot.root_id) {
@@ -154,21 +264,25 @@ function folderNode(f, node) {
   }
   node.dataset.fid = f.id;
   node.addEventListener('dragover', (e) => {
-    if (!dragging) return;
-    const ok = dropAllowed(f.id);
-    node.classList.toggle('dropok', ok);
-    node.classList.toggle('dropno', !ok);
-    if (ok) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+    const z = folderZone(f, e, node);
+    if (!z) return;
+    showZone(node, z);
+    if (z !== 'no') { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
   });
-  node.addEventListener('dragleave', (e) => { if (!node.contains(e.relatedTarget)) node.classList.remove('dropok', 'dropno'); });
+  node.addEventListener('dragleave', (e) => { if (!node.contains(e.relatedTarget)) showZone(node, null); });
   node.addEventListener('drop', async (e) => {
     e.preventDefault();
+    const z = folderZone(f, e, node);
     const drag = dragging;
     setDragging(null);
-    if (!drag) return;
+    if (!drag || !z || z === 'no') return;
     try {
       if (drag.kind === 'doc') { const d = docs.find((x) => x.id === drag.id); if (d && d.folder_id !== f.id) await moveDocTo(d, f.id); }
-      else { const src = folderById(drag.id); if (canDropFolder(src, f.id)) confirmMoveFolder(src, f.id); }
+      else {
+        const src = folderById(drag.id);
+        if (z === 'into') { if (canDropFolder(src, f.id)) confirmMoveFolder(src, f.id); }
+        else if (canPlaceFolder(src, f)) await placeFolder(src, f, z);
+      }
     } catch (ex) { toast(ex.message || 'ย้ายไม่สำเร็จ', true); }
   });
   return node;
@@ -193,6 +307,7 @@ function renderHead() {
   const manage = !!(f && isAdmin && f.id !== boot.root_id);
   $('renFolder').hidden = !manage;
   $('mvFolder').hidden = !manage;
+  updateShiftButtons();
   $('delFolder').hidden = !manage;
   $('upBtn').href = current ? `/upload.html?folder=${encodeURIComponent(current)}` : '/upload.html';
 }
@@ -227,6 +342,10 @@ function filtered() {
   const sort = $('f-sort').value;
   if (sort === 'old') list.sort((a, b) => String(a.uploaded_at).localeCompare(String(b.uploaded_at)));
   else if (sort === 'name') list.sort((a, b) => a.title.localeCompare(b.title, 'th'));
+  else if (sort === 'manual') {
+    const pos = new Map(folderTree(folders).map((f, i) => [f.id, i]));
+    list.sort((a, b) => ((pos.get(a.folder_id) ?? 1e9) - (pos.get(b.folder_id) ?? 1e9)) || docOrder(a, b));
+  }
   else if (sort === 'no') list.sort((a, b) => (a.doc_no || '~').localeCompare(b.doc_no || '~', 'th', { numeric: true }));
   return list;
 }
@@ -344,7 +463,7 @@ function render() {
   const list = filtered();
   renderTypeChips();
   renderChips();
-  $('count').replaceChildren('พบ ', h('b', { text: String(list.length) }), ' รายการ', list.some(canEditDoc) ? h('span', { class: 'dndhint', text: 'ลากเอกสารไปวางบนโฟลเดอร์ด้านซ้ายเพื่อย้าย' }) : '');
+  $('count').replaceChildren('พบ ', h('b', { text: String(list.length) }), ' รายการ', list.some(canEditDoc) ? h('span', { class: 'dndhint', text: isAdmin && manualMode() ? 'ลากแถวขึ้น/ลงเพื่อจัดลำดับ หรือวางบนโฟลเดอร์ด้านซ้ายเพื่อย้าย' : 'ลากเอกสารไปวางบนโฟลเดอร์ด้านซ้ายเพื่อย้าย' }) : '');
   const q = $('q').value;
   const t = $('tbl');
   t.replaceChildren(h('div', { class: 'tr head' }, ...['ชื่อเอกสาร', 'เลขที่', 'ประเภท', 'ขนาด', 'ผู้อัปโหลด', 'วันที่อัปโหลด', ''].map((x, i) => h('div', { class: ['', 'c-no', 'c-type', 'c-size', 'c-by', 'c-date', 'c-act'][i], text: x }))));
@@ -361,7 +480,10 @@ function render() {
         h('div', { class: 'c-size mono', text: fmtSize(d.size) }),
         h('div', { class: 'c-by who2' }, h('span', { class: 'ini', 'aria-hidden': 'true', text: initials(d.uploader) }), h('span', { text: d.uploader, title: d.uploader })),
         h('div', { class: 'c-date sub', text: fmtUploadDate(d.uploaded_at) }),
-        h('div', { class: 'c-act' }, ...(canEditDoc(d) ? [
+        h('div', { class: 'c-act' }, ...(isAdmin && manualMode() ? [
+          iconBtn(ICON.up, `เลื่อน ${d.title} ขึ้น`, () => shiftDoc(d, -1).catch((e) => toast(e.message, true))),
+          iconBtn(ICON.down, `เลื่อน ${d.title} ลง`, () => shiftDoc(d, 1).catch((e) => toast(e.message, true))),
+        ] : []), ...(canEditDoc(d) ? [
           iconBtn(ICON.move, `ย้าย ${d.title} ไปโฟลเดอร์อื่น`, () => moveDocDialog(d)),
           iconBtn(ICON.edit, `เปลี่ยนชื่อไฟล์ ${d.title}`, () => renameDoc(d)),
           iconBtn(ICON.trash, `ลบ ${d.title}`, () => deleteDoc(d), true),

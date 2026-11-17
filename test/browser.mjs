@@ -276,6 +276,56 @@ await page.click('#mvFolder');
 console.log('folder move dialog excludes self:', (await page.locator('#mv-fo option', { hasText: 'ปลายทาง B' }).count()) === 0);
 await page.keyboard.press('Escape');
 
+// ---- จัดลำดับเอง: โฟลเดอร์ (ลากที่ขอบ + ปุ่มขึ้น/ลง) และเอกสาร (โหมดลำดับที่กำหนดเอง) ----
+await page.goto(url + '/');
+await page.waitForSelector('#tree .fnode');
+const fidC = await mkFolder('ลำดับ C');
+const fidD = await mkFolder('ลำดับ D');
+await page.reload();
+await page.waitForSelector(`#tree .fnode[data-fid="${fidD}"]`);
+const treeBefore = await page.locator('#tree .fnode').evaluateAll((els) => els.map((e) => e.dataset.fid));
+console.log('tree order C before D:', treeBefore.indexOf(fidC) < treeBefore.indexOf(fidD));
+await page.locator(`#tree .fnode[data-fid="${fidD}"]`).dragTo(page.locator(`#tree .fnode[data-fid="${fidC}"]`), { targetPosition: { x: 40, y: 2 } });
+await page.waitForSelector('.toast');
+await page.waitForTimeout(300);
+const treeAfter = await page.locator('#tree .fnode').evaluateAll((els) => els.map((e) => e.dataset.fid));
+console.log('drag to top edge: D now before C:', treeAfter.indexOf(fidD) < treeAfter.indexOf(fidC), '| dialog opened (should be false):', (await page.locator('dialog').count()) > 0);
+await shot(page, '20-folder-reorder');
+await page.locator(`#tree .fnode[data-fid="${fidD}"] .fbtn`).click();
+const upDis = await page.locator('#upFolder').isDisabled();
+await page.click('#dnFolder');
+await page.waitForTimeout(400);
+const treeAfter2 = await page.locator('#tree .fnode').evaluateAll((els) => els.map((e) => e.dataset.fid));
+console.log('down button: D after C again:', treeAfter2.indexOf(fidD) > treeAfter2.indexOf(fidC), '| up disabled before:', upDis);
+await page.reload();
+await page.waitForSelector(`#tree .fnode[data-fid="${fidD}"]`);
+const treeAfter3 = await page.locator('#tree .fnode').evaluateAll((els) => els.map((e) => e.dataset.fid));
+console.log('order persisted after reload:', treeAfter3.indexOf(fidD) > treeAfter3.indexOf(fidC));
+// เอกสาร: ย้ายเอกสาร 2 ไฟล์เข้าโฟลเดอร์ C แล้วเรียงแบบกำหนดเอง
+await page.evaluate(async (fid) => { const d = (await (await fetch('/api/documents')).json()).documents.slice(0, 2); for (const x of d) await fetch(`/api/documents/${x.id}/move`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ folder_id: fid }) }); }, fidC);
+await page.reload();
+await page.waitForSelector(`#tree .fnode[data-fid="${fidC}"]`);
+await page.locator(`#tree .fnode[data-fid="${fidC}"] .fbtn`).click();
+await page.selectOption('#f-sort', 'manual');
+await page.waitForSelector('#tbl .tr:not(.head)');
+const titles = () => page.locator('#tbl .tr:not(.head) .t').allTextContents();
+const t0 = await titles();
+console.log('manual mode rows:', t0.length, '| row arrows:', await page.locator('#tbl .tr:not(.head) .iconbtn[title^="เลื่อน"]').count(), '| hint:', await page.locator('.dndhint').textContent());
+await page.locator('#tbl .tr:not(.head) >> nth=1').dragTo(page.locator('#tbl .tr:not(.head) >> nth=0'), { targetPosition: { x: 200, y: 3 } });
+await page.waitForTimeout(500);
+const t1 = await titles();
+console.log('doc reordered by drag (swapped):', t1[0] === t0[1] && t1[1] === t0[0]);
+await page.locator('#tbl .tr:not(.head) .iconbtn[title^="เลื่อน"][title$="ลง"] >> nth=0').click();
+await page.waitForTimeout(400);
+const t2 = await titles();
+console.log('doc down button (swapped back):', t2[0] === t0[0] && t2[1] === t0[1]);
+await shot(page, '21-doc-reorder');
+await page.reload();
+await page.waitForSelector('#tbl .tr:not(.head)');
+await page.selectOption('#f-sort', 'manual');
+console.log('doc order persisted after reload:', JSON.stringify(await titles()) === JSON.stringify(t2));
+await page.selectOption('#f-sort', 'new');
+
 // ---- แก้ชื่อ/ลบ ไฟล์และโฟลเดอร์ จากหน้าคลัง (เดสก์ท็อป) ----
 await page.goto(url + '/');
 await page.waitForSelector('#tbl .tr:not(.head)');
