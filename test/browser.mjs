@@ -281,42 +281,45 @@ await page.goto(url + '/');
 await page.waitForSelector('#tree .fnode');
 const sideW = () => page.evaluate(() => Math.round(document.querySelector('.side').getBoundingClientRect().width));
 const w0 = await sideW();
-console.log('size buttons visible:', await page.locator('#szLess').isVisible(), await page.locator('#szMore').isVisible());
-await page.click('#szMore'); await page.click('#szMore');
-const w1 = await sideW();
-console.log('expand x2:', w0, '->', w1, '| ok:', w1 === w0 + 112);
-await shot(page, '22-side-wide');
-await page.reload();
-await page.waitForSelector('#tree .fnode');
-console.log('width persisted after reload:', (await sideW()) === w1);
-await page.click('#szLess'); await page.click('#szLess'); await page.click('#szLess'); await page.click('#szLess');
-const wMin = await sideW();
-console.log('shrink to min 200 and disable:', wMin, await page.locator('#szLess').isDisabled());
-for (let i = 0; i < 12; i++) if (!(await page.locator('#szMore').isDisabled())) await page.click('#szMore');
-const wMax = await sideW();
-console.log('expand to max and disable:', wMax, await page.locator('#szMore').isDisabled());
+console.log('grip visible, no step buttons:', await page.locator('#szGrip').isVisible(), (await page.locator('#szLess, #szMore').count()) === 0);
+const g0 = await page.locator('#szGrip').boundingBox();
+await page.mouse.click(g0.x + g0.width / 2, g0.y + g0.height / 2); // คลิกเฉย ๆ ต้องไม่ทำอะไร
+console.log('plain click does nothing:', (await sideW()) === w0);
 { // กดค้างที่ปุ่ม < > แล้วลากซ้าย-ขวา
   await page.evaluate(() => localStorage.removeItem('edms.sideWidth'));
   await page.reload(); await page.waitForSelector('#tree .fnode');
   const d0 = await sideW();
-  const gb = await page.locator('.szgrp').boundingBox();
+  const gb = await page.locator('#szGrip').boundingBox();
   await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await page.mouse.down();
   await page.mouse.move(gb.x + gb.width / 2 + 120, gb.y + gb.height / 2, { steps: 8 });
   const dMid = await sideW();
   await page.mouse.up();
   console.log('hold & drag right:', d0, '->', dMid, '| ok:', dMid >= d0 + 100, '| no extra step click:', (await sideW()) === dMid);
-  const gb2 = await page.locator('.szgrp').boundingBox();
+  const gb2 = await page.locator('#szGrip').boundingBox();
   await page.mouse.move(gb2.x + gb2.width / 2, gb2.y + gb2.height / 2); await page.mouse.down();
   await page.mouse.move(gb2.x + gb2.width / 2 - 90, gb2.y + gb2.height / 2, { steps: 6 });
   await page.mouse.up();
   const dEnd = await sideW();
   console.log('hold & drag left (shrink):', dMid, '->', dEnd);
+  await page.mouse.move(gb2.x + 15, gb2.y + 15);
+  { const g = await page.locator('#szGrip').boundingBox(); await page.mouse.move(g.x + 15, g.y + 15); await page.mouse.down(); await page.mouse.move(g.x - 600, g.y + 15, { steps: 6 }); await page.mouse.up(); }
+  console.log('drag to min clamps at 200:', await sideW());
+  { const g = await page.locator('#szGrip').boundingBox(); await page.mouse.move(g.x + 15, g.y + 15); await page.mouse.down(); await page.mouse.move(g.x + 900, g.y + 15, { steps: 6 }); await page.mouse.up(); }
+  const dMax = await sideW();
+  console.log('drag to max clamps (<=560):', dMax);
+  await page.focus('#szGrip'); await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft');
+  console.log('keyboard arrows adjust by 16:', dMax - (await sideW()));
+  await page.mouse.move(gb2.x + 15, gb2.y + 15);
+  await page.evaluate(() => localStorage.removeItem('edms.sideWidth')); await page.reload(); await page.waitForSelector('#tree .fnode');
+  { const g = await page.locator('#szGrip').boundingBox(); await page.mouse.move(g.x + 15, g.y + 15); await page.mouse.down(); await page.mouse.move(g.x + 15 + 60, g.y + 15, { steps: 6 }); await page.mouse.up(); }
+  const dEnd2 = await sideW();
   await page.reload(); await page.waitForSelector('#tree .fnode');
-  console.log('dragged width persisted:', (await sideW()) === dEnd);
+  await page.reload(); await page.waitForSelector('#tree .fnode');
+  console.log('dragged width persisted:', (await sideW()) === dEnd2);
   await page.evaluate(() => localStorage.removeItem('edms.sideWidth'));
   await page.reload(); await page.waitForSelector('#tree .fnode');
 }
-console.log('buttons in viewport:', await page.evaluate(() => { const r = document.querySelector('.szgrp').getBoundingClientRect(); return r.top > 0 && r.bottom < innerHeight; }));
+console.log('buttons in viewport:', await page.evaluate(() => { const r = document.getElementById('szGrip').getBoundingClientRect(); return r.top > 0 && r.bottom < innerHeight; }));
 await page.evaluate(() => localStorage.removeItem('edms.sideWidth'));
 await page.reload();
 await page.waitForSelector('#tree .fnode');

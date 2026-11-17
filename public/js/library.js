@@ -551,17 +551,19 @@ async function checkUpdates() {
 setInterval(checkUpdates, 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdates(); });
 
-// ---------- ปุ่ม < > ที่ขอบแผนผังโฟลเดอร์: ลด/ขยายความกว้างทีละขั้น (จำค่าไว้) ----------
+// ---------- ปุ่มวงกลม <> ที่ขอบแผนผังโฟลเดอร์: กดค้างแล้วลากเพื่อปรับความกว้าง (จำค่าไว้) ----------
 const WIDTH_KEY = 'edms.sideWidth';
 const MIN_SIDE = 200;
-const STEP_SIDE = 56;
+const STEP_SIDE = 16; // ปุ่มลูกศรบนคีย์บอร์ด
 const maxSide = () => Math.max(MIN_SIDE, Math.min(560, Math.round(innerWidth * (innerWidth <= 1100 ? 0.5 : 0.6) - 40)));
 const sideNow = () => Math.round($('side').getBoundingClientRect().width);
 function updateSizeButtons() {
   const w = sideNow();
   if (!w) return;
-  $('szLess').disabled = w <= MIN_SIDE + 1;
-  $('szMore').disabled = w >= maxSide() - 1;
+  const g = $('szGrip');
+  g.setAttribute('aria-valuemin', String(MIN_SIDE));
+  g.setAttribute('aria-valuemax', String(maxSide()));
+  g.setAttribute('aria-valuenow', String(w));
 }
 function applySideWidth(w, save = false) {
   const v = Math.max(MIN_SIDE, Math.min(maxSide(), Math.round(w)));
@@ -574,13 +576,18 @@ function applySideWidth(w, save = false) {
   try { saved = parseInt(localStorage.getItem(WIDTH_KEY) || '', 10) || null; } catch { /* ไม่เป็นไร */ }
   if (saved) applySideWidth(saved);
   addEventListener('resize', () => { const cur = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--side-w'), 10); if (cur) applySideWidth(cur); else updateSizeButtons(); });
-  $('szLess').addEventListener('click', () => applySideWidth(sideNow() - STEP_SIDE, true));
-  $('szMore').addEventListener('click', () => applySideWidth(sideNow() + STEP_SIDE, true));
-  // กดค้างที่ปุ่ม < > แล้วลากซ้าย-ขวาเพื่อยืดเข้า-ออกอย่างต่อเนื่อง (คลิกสั้น ๆ = ปรับทีละขั้น)
-  const grp = document.querySelector('.szgrp');
-  let drag = null, justDragged = false;
+  // กดค้างที่ปุ่มวงกลมแล้วลากซ้าย-ขวาเพื่อยืดเข้า-ออก (ไม่มีการคลิกปรับทีละขั้น)
+  const grp = $('szGrip');
+  let drag = null;
+  grp.addEventListener('keydown', (e) => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    applySideWidth(sideNow() + d * STEP_SIDE, true);
+  });
   grp.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
+    e.preventDefault();
     drag = { id: e.pointerId, x: e.clientX, w: sideNow(), moved: false };
   });
   // ฟังที่ window เพราะปุ่มเล็ก เมาส์/นิ้วอาจหลุดออกนอกปุ่มก่อนจะเริ่มลาก
@@ -596,13 +603,12 @@ function applySideWidth(w, save = false) {
   });
   const endDrag = (e) => {
     if (!drag || e.pointerId !== drag.id) return;
-    if (drag.moved) { justDragged = true; setTimeout(() => { justDragged = false; }, 0); applySideWidth(sideNow(), true); }
+    if (drag.moved) applySideWidth(sideNow(), true);
     document.body.classList.remove('resizing');
     drag = null;
   };
   addEventListener('pointerup', endDrag);
   addEventListener('pointercancel', endDrag);
-  grp.addEventListener('click', (e) => { if (justDragged) { e.stopPropagation(); e.preventDefault(); } }, true);
   updateSizeButtons();
 }
 
