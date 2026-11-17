@@ -298,6 +298,9 @@ dialog .acts{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 
 /* ---------- แอปบนมือถือ/แท็บเล็ต (responsive) ---------- */
 .tabbar,.scrim,.folderbtn,.mobrow,.sideclose,.filterbtn{display:none}
+.sidetoggle{display:inline-flex;align-items:center;gap:8px}
+/* จอใหญ่: ซ่อนแถบโฟลเดอร์ซ้ายทั้งแถบ ให้พื้นที่รายการกว้างขึ้น */
+@media (min-width:1101px){body.side-hidden .side{display:none}}
 .fbox{display:contents}
 
 /* จอไม่กว้างมาก: ซ่อนคอลัมน์เลขที่/ขนาด เพื่อให้ชื่อเอกสารมีที่พอ */
@@ -314,6 +317,7 @@ dialog .acts{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
   .sideclose{display:flex;position:absolute;top:calc(10px + env(safe-area-inset-top));right:10px;width:44px;height:44px;border:0;border-radius:50%;background:var(--w12);color:#fff;align-items:center;justify-content:center;cursor:pointer}
   .side .cap{padding-right:52px}
   .mobrow{display:flex;gap:8px}
+  .sidetoggle{display:none}
   .folderbtn{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%}
   .folderbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tg{width:34px;height:34px;font-size:19px}

@@ -115,6 +115,19 @@ await page.waitForSelector('#recent .rr');
 await shot(page, '07c-dashboard-mobile');
 await page.setViewportSize({ width: 1280, height: 800 });
 
+// ซ่อน/แสดงแถบโฟลเดอร์ (จอคอม)
+await page.goto(url + '/');
+await page.waitForSelector('#tbl .tr:not(.head)');
+console.log('side visible at start:', await page.locator('.side').isVisible(), '| toggle visible:', await page.locator('#sideToggle').isVisible());
+await page.click('#sideToggle');
+console.log('side hidden after toggle:', !(await page.locator('.side').isVisible()), '| label:', await page.textContent('#sideToggleLbl'), '| main width:', await page.evaluate(() => Math.round(document.querySelector('#main').getBoundingClientRect().width)));
+await shot(page, '07d-side-hidden');
+await page.reload();
+await page.waitForSelector('#tbl .tr:not(.head)');
+console.log('side stays hidden after reload:', !(await page.locator('.side').isVisible()));
+await page.click('#sideToggle');
+console.log('side visible again:', await page.locator('.side').isVisible());
+
 // ผู้ใช้
 await page.goto(url + '/users.html');
 await page.waitForSelector('#list .tr:not(.head)');
@@ -147,6 +160,7 @@ await shot(m.page, '10b-mobile-drawer');
 console.log('drawer visible after tap:', await m.page.locator('.side').isVisible());
 await m.page.locator('#tree .fbtn >> nth=1').click();
 await m.page.waitForTimeout(350);
+console.log('desktop toggle hidden on phone:', !(await m.page.locator('#sideToggle').isVisible()));
 console.log('drawer closed after pick:', !(await m.page.locator('.side').isVisible()), '| folder button label:', await m.page.textContent('#folderBtnLbl'));
 console.log('filters hidden:', !(await m.page.locator('#fbox').isVisible()));
 await m.page.click('#filterBtn');
