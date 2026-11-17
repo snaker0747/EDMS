@@ -121,45 +121,13 @@ function emptyState() {
 }
 
 
-const bkkYM = (iso) => {
-  const d = new Date(iso);
-  return isNaN(d) ? '' : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d).slice(0, 7);
-};
 const nf = (n) => new Intl.NumberFormat('th-TH').format(n);
 
-// เอกสารตามโฟลเดอร์ที่เลือกเท่านั้น (ยังไม่ใช้ตัวกรองอื่น) ใช้กับการ์ดสรุปและชิปประเภท
+// เอกสารตามโฟลเดอร์ที่เลือกเท่านั้น (ยังไม่ใช้ตัวกรองอื่น) ใช้กับชิปประเภท
 function scopeDocs() {
   if (!current) return docs;
   const ids = $('sub').checked ? descendantIds(folders, current) : new Set([current]);
   return docs.filter((d) => ids.has(d.folder_id));
-}
-
-function kpi(cls, icon, label, value, unit, sub, pct, pill) {
-  return h('div', { class: `kpi ${cls}` },
-    h('div', { class: 'top' }, h('div', { class: 'ib' }, svgIcon(icon, 20)), label),
-    h('div', { class: 'vrow' }, h('div', { class: 'val' }, value, unit ? h('small', { text: unit }) : ''), pill || ''),
-    h('div', { class: 'sub', text: sub }),
-    h('div', { class: 'prog', role: 'presentation' }, h('i', { style: `width:${Math.max(0, Math.min(100, pct))}%` }))
-  );
-}
-
-function renderKpis() {
-  const sc = scopeDocs();
-  const ym = bkkYM(new Date().toISOString());
-  const month = sc.filter((d) => bkkYM(d.uploaded_at) === ym).length;
-  const bytes = sc.reduce((a, d) => a + (Number(d.size) || 0), 0);
-  const types = new Map();
-  for (const d of sc) if (d.doc_type) types.set(d.doc_type, (types.get(d.doc_type) || 0) + 1);
-  const top = [...types.entries()].sort((a, b) => b[1] - a[1])[0];
-  const noType = sc.filter((d) => !d.doc_type).length;
-  $('kpis').replaceChildren(
-    kpi('', ICON.files, current ? 'เอกสารในโฟลเดอร์นี้' : 'เอกสารทั้งหมด', nf(sc.length), 'รายการ', current ? `จากทั้งระบบ ${nf(docs.length)} รายการ` : `ใน ${nf(folders.length)} โฟลเดอร์`, docs.length ? (sc.length / docs.length) * 100 : 0),
-    kpi('ok', ICON.clock, 'อัปโหลดเดือนนี้', nf(month), 'รายการ', sc.length ? `คิดเป็น ${Math.round((month / sc.length) * 100)}% ของเอกสารที่แสดง` : 'ยังไม่มีเอกสาร', sc.length ? (month / sc.length) * 100 : 0,
-      month ? h('span', { class: 'pill ok', text: 'ใหม่' }) : null),
-    kpi('', ICON.drive, 'พื้นที่ที่ใช้', fmtSize(bytes), '', sc.length ? `เฉลี่ย ${fmtSize(Math.round(bytes / sc.length))} ต่อไฟล์` : 'ยังไม่มีไฟล์', sc.length ? 100 : 0),
-    kpi(noType ? 'warn' : '', ICON.chart, 'ประเภทเอกสาร', nf(types.size), 'ประเภท', top ? `มากสุด: ${top[0]} (${nf(top[1])})` : 'ยังไม่ได้ระบุประเภท', sc.length ? ((sc.length - noType) / sc.length) * 100 : 0,
-      noType ? h('span', { class: 'pill warn', text: `ไม่ระบุ ${nf(noType)}` }) : null)
-  );
 }
 
 function renderTypeChips() {
@@ -179,7 +147,6 @@ const todayTh = () => new Intl.DateTimeFormat('th-TH-u-ca-buddhist', { timeZone:
 
 function render() {
   const list = filtered();
-  renderKpis();
   renderTypeChips();
   renderChips();
   $('count').replaceChildren('พบ ', h('b', { text: String(list.length) }), ' รายการ');
