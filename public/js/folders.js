@@ -17,7 +17,7 @@ function renderRows() {
   const box = $('rows');
   box.replaceChildren();
   for (const f of folderTree(folders)) {
-    const info = h('div', { class: 'info' }, h('div', { style: undefined, text: f.name }), h('div', { class: 'muted', style: undefined, text: `${f.depth ? f.path.split(' › ').slice(0, -1).join(' › ') : 'โฟลเดอร์หลักใน Google Drive'} · มีเอกสาร ${f.doc_count} รายการ` }));
+    const info = h('div', { class: 'info' }, h('div', { style: undefined, text: f.name }), h('div', { class: 'muted', style: undefined, text: `${f.depth ? f.path.split(' › ').slice(0, -1).join(' › ') : 'โฟลเดอร์หลักของระบบ'} · มีเอกสาร ${f.doc_count} รายการ` }));
     info.firstChild.style.fontWeight = '600';
     info.lastChild.style.fontSize = '12px';
     const row = h('div', { class: 'frow' }, h('div', { style: undefined, 'aria-hidden': 'true', text: '' }), info);
@@ -69,7 +69,7 @@ function move(f) {
   });
 }
 function remove(f) {
-  confirmBox(`ลบโฟลเดอร์ "${f.name}"? (ลบได้เฉพาะโฟลเดอร์ที่ว่าง ระบบจะย้ายไปถังขยะใน Google Drive)`, 'ลบโฟลเดอร์', true, async () => {
+  confirmBox(`ลบโฟลเดอร์ "${f.name}"? (ลบได้เฉพาะโฟลเดอร์ที่ว่าง ระบบจะย้ายไปถังขยะของที่เก็บไฟล์)`, 'ลบโฟลเดอร์', true, async () => {
     await api('DELETE', `/api/folders/${f.id}`);
     await reload();
     toast('ลบโฟลเดอร์แล้ว');

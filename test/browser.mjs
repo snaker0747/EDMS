@@ -29,6 +29,9 @@ await page.waitForSelector('#err:not([hidden])');
 console.log('login error shown:', await page.textContent('#err'));
 await page.fill('#p', 'Passw0rd!x');
 await page.click('#go');
+await page.waitForURL(/dashboard\.html/); // ล็อกอินแล้วเข้าแดชบอร์ดก่อน
+await page.waitForSelector('#kpis .kpi');
+await page.goto(url + '/');
 await page.waitForSelector('#tbl .tr:not(.head)');
 await shot(page, '02-library');
 console.log('banner:', (await page.textContent('.banner')).trim());
@@ -131,6 +134,8 @@ await m.page.goto(url + '/login.html');
 await m.page.fill('#u', 'somchai');
 await m.page.fill('#p', 'Somchai#2570');
 await m.page.click('#go');
+await m.page.waitForURL(/dashboard\.html/);
+await m.page.goto(url + '/');
 await m.page.waitForSelector('#tbl .tr:not(.head)');
 await shot(m.page, '10-mobile-library');
 await m.page.goto(url + '/upload.html');

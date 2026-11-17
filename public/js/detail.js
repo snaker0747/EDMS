@@ -31,7 +31,7 @@ function render() {
   $('topActs').replaceChildren(
     h('a', { class: 'btn', href: fileUrl(true), text: 'ดาวน์โหลด' }),
     h('button', { class: 'btn', type: 'button', text: 'คัดลอกลิงก์', onclick: copyLink }),
-    isAdmin && doc.drive_url ? h('a', { class: 'btn blue', href: doc.drive_url, target: '_blank', rel: 'noopener', text: 'เปิดใน Google Drive' }) : ''
+    isAdmin && doc.drive_url ? h('a', { class: 'btn blue', href: doc.drive_url, target: '_blank', rel: 'noopener', text: 'เปิดในที่เก็บไฟล์' }) : ''
   );
 
   // ตัวอย่างไฟล์
@@ -121,7 +121,7 @@ $('edit').addEventListener('click', () => {
 function renameDialog() {
   askText({
     title: 'เปลี่ยนชื่อเอกสาร',
-    label: 'ชื่อเอกสาร (ชื่อไฟล์ใน Google Drive จะเปลี่ยนตาม)',
+    label: 'ชื่อเอกสาร (ชื่อไฟล์ในที่เก็บไฟล์จะเปลี่ยนตาม)',
     value: doc.title,
     onOk: async (name) => {
       const r = await api('PATCH', `/api/documents/${encodeURIComponent(id)}`, { title: name });
@@ -150,7 +150,7 @@ function moveDialog() {
 }
 
 function trashDialog() {
-  confirmBox(`ย้าย "${doc.title}" ไปถังขยะ? (กู้คืนได้จากถังขยะใน Google Drive ภายใน 30 วัน)`, 'ย้ายไปถังขยะ', true, async () => {
+  confirmBox(`ย้าย "${doc.title}" ไปถังขยะ? (กู้คืนได้จากถังขยะของที่เก็บไฟล์ ภายใน 30 วัน)`, 'ย้ายไปถังขยะ', true, async () => {
     await api('DELETE', `/api/documents/${encodeURIComponent(id)}`);
     location.href = '/';
     return true;

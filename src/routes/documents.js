@@ -180,12 +180,12 @@ export async function docHistory(c, { id }) {
 export async function fileDoc(c, { id }, request) {
   const doc = await activeDoc(c, id);
   if (doc.mime.startsWith('application/vnd.google-apps')) {
-    throw new HttpError(415, 'ไฟล์ชนิดนี้เปิดได้ที่ Google Drive เท่านั้น');
+    throw new HttpError(415, 'ไฟล์ชนิดนี้ไม่รองรับการเปิดดูในระบบ');
   }
   const url = new URL(request.url);
   const download = url.searchParams.get('download') === '1';
   const res = await G.driveDownload(c.env, id, request.headers.get('range'));
-  if (!res.ok && res.status !== 206) throw new HttpError(res.status === 404 ? 404 : 502, 'เปิดไฟล์จาก Google Drive ไม่ได้');
+  if (!res.ok && res.status !== 206) throw new HttpError(res.status === 404 ? 404 : 502, 'เปิดไฟล์ไม่ได้');
   const mime = doc.mime || res.headers.get('content-type') || 'application/octet-stream';
   const inline = !download && INLINE_MIME.has(mime);
   const headers = new Headers({

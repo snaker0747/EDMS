@@ -63,7 +63,7 @@ async function gjson(env, url, init) {
   if (!res.ok) {
     console.error('google api error', res.status, url, text.slice(0, 500));
     const reason = data?.error?.message || text.slice(0, 200);
-    if (res.status === 404) throw new HttpError(404, 'ไม่พบรายการใน Google Drive');
+    if (res.status === 404) throw new HttpError(404, 'ไม่พบรายการในที่เก็บไฟล์');
     if (res.status === 403) throw new HttpError(502, `Google ไม่อนุญาตการเข้าถึง: ${reason}`);
     throw new HttpError(502, `Google ตอบกลับผิดพลาด (${res.status}): ${reason}`);
   }
@@ -130,10 +130,10 @@ async function resumableUpload(env, { method, url, metadata, mime, bytes }) {
   });
   if (!init.ok) {
     console.error('upload init error', init.status, (await init.text()).slice(0, 300));
-    throw new HttpError(502, 'เริ่มอัปโหลดไป Google Drive ไม่สำเร็จ');
+    throw new HttpError(502, 'เริ่มอัปโหลดไฟล์ไม่สำเร็จ');
   }
   const location = init.headers.get('location');
-  if (!location) throw new HttpError(502, 'Google Drive ไม่ส่งที่อยู่สำหรับอัปโหลด');
+  if (!location) throw new HttpError(502, 'ที่เก็บไฟล์ไม่ส่งที่อยู่สำหรับอัปโหลด');
   const put = await gfetch(env, location, {
     method: 'PUT',
     headers: { 'content-type': mime },
@@ -142,7 +142,7 @@ async function resumableUpload(env, { method, url, metadata, mime, bytes }) {
   const text = await put.text();
   if (!put.ok) {
     console.error('upload put error', put.status, text.slice(0, 300));
-    throw new HttpError(502, 'ส่งไฟล์ไป Google Drive ไม่สำเร็จ');
+    throw new HttpError(502, 'ส่งไฟล์ไม่สำเร็จ');
   }
   return JSON.parse(text);
 }

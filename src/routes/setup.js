@@ -81,7 +81,7 @@ export async function syncFromDrive(c) {
 
 export async function adminSync(c) {
   const result = await syncFromDrive(c);
-  logHistory(c, 'ซิงก์จาก Google Drive', '', '', `เพิ่มโฟลเดอร์ ${result.folders_added}, เอกสาร ${result.documents_added}`);
+  logHistory(c, 'ซิงก์ไฟล์จากที่เก็บไฟล์', '', '', `เพิ่มโฟลเดอร์ ${result.folders_added}, เอกสาร ${result.documents_added}`);
   return json(result);
 }
 

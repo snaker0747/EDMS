@@ -11,8 +11,8 @@ f.addEventListener('submit', async (e) => {
   err.hidden = true;
   try {
     await api('POST', '/api/login', { username: document.getElementById('u').value, password: document.getElementById('p').value });
-    const next = new URLSearchParams(location.search).get('next') || '/';
-    location.href = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+    const next = new URLSearchParams(location.search).get('next') || '/dashboard.html';
+    location.href = next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard.html';
   } catch (ex) {
     err.textContent = ex.message;
     err.hidden = false;

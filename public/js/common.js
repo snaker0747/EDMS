@@ -71,7 +71,9 @@ export async function api(method, path, body) {
   }
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && !path.startsWith('/api/login')) {
-    location.href = '/login.html?next=' + encodeURIComponent(location.pathname + location.search);
+    // หน้าแรก (/) ไม่ต้องจำ เพื่อให้ล็อกอินแล้วเข้าแดชบอร์ด
+    const back = location.pathname + location.search;
+    location.href = back === '/' ? '/login.html' : '/login.html?next=' + encodeURIComponent(back);
     return new Promise(() => {}); // รอหน้าเปลี่ยนไปหน้าล็อกอิน
   }
   if (!res.ok) throw new Error(data.error || `เกิดข้อผิดพลาด (${res.status})`);
