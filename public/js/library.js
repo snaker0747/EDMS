@@ -1,4 +1,4 @@
-import { h, api, init, toast, askText, confirmBox, renameFolderDialog, deleteFolderDialog, folderTree, descendantIds, fmtSize, fmtUploadDate, extBadge, highlight, initials, svgIcon, ICON, driveFolderUrl, qs } from './common.js';
+import { h, api, init, toast, askText, confirmBox, renameFolderDialog, deleteFolderDialog, folderTree, descendantIds, fmtSize, fmtUploadDate, extBadge, highlight, initials, svgIcon, ICON, qs } from './common.js';
 
 // ขอรายการเอกสารพร้อมกับข้อมูลเริ่มต้น ไม่ต้องรอกันทีละอย่าง
 const docsReq = api('GET', '/api/documents');
@@ -56,12 +56,6 @@ function renderTree() {
     h('button', { class: 'fbtn', type: 'button', 'aria-current': current === id ? 'true' : 'false', title, onclick: () => select(id) },
       h('span', { class: 'lead' }, svgIcon(id ? ICON.folder : ICON.files, 16), h('span', { class: 'nm', text: label })), h('span', { class: 'n', text: count }));
 
-  const parents = folders.filter((f) => (kids.get(f.id) || []).length);
-  if (parents.length) {
-    t.append(h('div', { class: 'treetools' },
-      h('button', { type: 'button', text: 'ขยายทั้งหมด', onclick: () => { collapsed.clear(); saveCollapsed(); renderTree(); } }),
-      h('button', { type: 'button', text: 'ย่อทั้งหมด', onclick: () => { collapsed = new Set(parents.map((f) => f.id)); revealCurrent(); saveCollapsed(); renderTree(); } })));
-  }
   t.append(h('div', { class: 'fnode' }, btn('', 'เอกสารทั้งหมด', docs.length, '')));
   for (const f of folderTree(folders)) {
     if (hiddenByParent(f)) continue;
@@ -95,9 +89,6 @@ function renderHead() {
   $('h1').textContent = f ? f.name : 'เอกสารทั้งหมด';
   $('crumb').textContent = f ? f.path : 'ทุกโฟลเดอร์';
   $('lede').textContent = `สวัสดี ${boot.me.display_name} · ${todayTh()}`;
-  const link = $('driveLink');
-  link.hidden = !(f && isAdmin);
-  if (f) link.href = driveFolderUrl(f.id);
   $('folderBtnLbl').textContent = f ? f.name : 'ทุกโฟลเดอร์';
   const manage = !!(f && isAdmin && f.id !== boot.root_id);
   $('renFolder').hidden = !manage;
@@ -339,13 +330,15 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) chec
 const SIDE_KEY = 'edms.sideHidden';
 function setSideHidden(hide, save = true) {
   document.body.classList.toggle('side-hidden', hide);
-  $('sideToggle').setAttribute('aria-expanded', String(!hide));
+  $('sideOpen').hidden = !hide;
+  $('sideOpen').setAttribute('aria-expanded', String(!hide));
+  $('sideCollapse').setAttribute('aria-expanded', String(!hide));
   $('folderBtn').setAttribute('aria-expanded', String(!hide));
-  $('sideToggleLbl').textContent = hide ? 'แสดงแถบโฟลเดอร์' : 'ซ่อนแถบโฟลเดอร์';
   if (save) { try { localStorage.setItem(SIDE_KEY, hide ? '1' : '0'); } catch { /* ไม่เป็นไร */ } }
 }
 { let hid = false; try { hid = localStorage.getItem(SIDE_KEY) === '1'; } catch { /* ใช้ค่าเริ่มต้น */ } setSideHidden(hid, false); }
-$('sideToggle').addEventListener('click', () => setSideHidden(!document.body.classList.contains('side-hidden')));
+$('sideCollapse').addEventListener('click', () => setSideHidden(true));
+$('sideOpen').addEventListener('click', () => setSideHidden(false));
 
 // ---------- มือถือ: ปุ่มโฟลเดอร์ซ่อน/แสดงแผนผัง + ปุ่มเปิดตัวกรอง ----------
 $('folderBtn').addEventListener('click', () => setSideHidden(!document.body.classList.contains('side-hidden')));

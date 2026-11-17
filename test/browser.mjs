@@ -129,15 +129,16 @@ await page.setViewportSize({ width: 1280, height: 800 });
 // ซ่อน/แสดงแถบโฟลเดอร์ (จอคอม)
 await page.goto(url + '/');
 await page.waitForSelector('#tbl .tr:not(.head)');
-console.log('side visible at start:', await page.locator('.side').isVisible(), '| toggle visible:', await page.locator('#sideToggle').isVisible());
-await page.click('#sideToggle');
-console.log('side hidden after toggle:', !(await page.locator('.side').isVisible()), '| label:', await page.textContent('#sideToggleLbl'), '| main width:', await page.evaluate(() => Math.round(document.querySelector('#main').getBoundingClientRect().width)));
+console.log('side visible at start:', await page.locator('.side').isVisible(), '| collapse btn:', await page.locator('#sideCollapse').isVisible(), '| open btn hidden:', !(await page.locator('#sideOpen').isVisible()));
+await shot(page, '07c-side-visible');
+await page.click('#sideCollapse');
+console.log('side hidden after collapse:', !(await page.locator('.side').isVisible()), '| open btn visible:', await page.locator('#sideOpen').isVisible(), '| main width:', await page.evaluate(() => Math.round(document.querySelector('#main').getBoundingClientRect().width)));
 await shot(page, '07d-side-hidden');
 await page.reload();
 await page.waitForSelector('#tbl .tr:not(.head)');
 console.log('side stays hidden after reload:', !(await page.locator('.side').isVisible()));
-await page.click('#sideToggle');
-console.log('side visible again:', await page.locator('.side').isVisible());
+await page.click('#sideOpen');
+console.log('side visible again:', await page.locator('.side').isVisible(), '| open btn hidden:', !(await page.locator('#sideOpen').isVisible()));
 
 // ผู้ใช้
 await page.goto(url + '/users.html');
@@ -172,7 +173,7 @@ await m.page.click('#folderBtn');
 console.log('phone: tree visible again:', await m.page.locator('.side').isVisible());
 await m.page.locator('#tree .fbtn >> nth=1').click();
 await m.page.waitForTimeout(350);
-console.log('desktop toggle hidden on phone:', !(await m.page.locator('#sideToggle').isVisible()));
+console.log('open-icon hidden on phone:', !(await m.page.locator('#sideOpen').isVisible()));
 console.log('phone: tree auto-hidden after pick:', !(await m.page.locator('.side').isVisible()), '| folder button label:', await m.page.textContent('#folderBtnLbl'));
 console.log('filters hidden:', !(await m.page.locator('#fbox').isVisible()));
 await m.page.click('#filterBtn');
@@ -228,7 +229,7 @@ await shot(page, '16-tree-collapsed');
 await page.reload();
 await page.waitForSelector('#tree .fbtn');
 console.log('tree rows expanded/collapsed/after reload:', fbBefore, fbCollapsed, await page.locator('#tree .fbtn').count());
-await page.click('#tree .treetools button >> text=ขยายทั้งหมด');
+await page.locator('#tree .tg[aria-expanded=false] >> nth=0').click();
 console.log('after expand all:', await page.locator('#tree .fbtn').count(), '| row folder label:', await page.locator('#tbl .fp').first().textContent());
 await shot(page, '17-tree-expanded');
 

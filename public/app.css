@@ -155,9 +155,6 @@ mark{background:#FFE8A3;color:inherit;border-radius:4px;padding:0 1px}
 .tg{flex:none;width:26px;height:26px;padding:0;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-size:17px;font-weight:500;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s}
 .tg:hover{background:var(--w12)}
 .tg.sp{border-color:transparent;pointer-events:none}
-.treetools{display:flex;gap:4px;padding:0 4px 8px}
-.treetools button{border:0;background:transparent;color:var(--on-brand-muted);font-size:12.5px;text-decoration:underline;cursor:pointer;min-height:32px;padding:0 8px;border-radius:8px}
-.treetools button:hover{color:#fff;background:var(--w12)}
 .tt{display:flex;flex-direction:column;min-width:0;gap:1px}
 .fp{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:400;color:var(--text3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fp svg{flex:none}
@@ -298,7 +295,16 @@ dialog .acts{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 
 /* ---------- แอปบนมือถือ/แท็บเล็ต (responsive) ---------- */
 .tabbar,.folderbtn,.mobrow,.filterbtn{display:none}
-.sidetoggle{display:inline-flex;align-items:center;gap:8px}
+.side{position:relative}
+.side .cap{padding-right:52px}
+.sidecollapse,.sideopen{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;cursor:pointer;flex:none;transition:background .15s,border-color .15s}
+.sidecollapse{position:absolute;top:12px;right:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff}
+.sidecollapse:hover{background:rgba(255,255,255,.18)}
+.sideopen{border:1px solid var(--border);background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(11,24,48,.06);margin-top:2px}
+.sideopen:hover{background:var(--bg)}
+.sideopen[hidden]{display:none}
+.hl{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.hl>div{min-width:0}
 /* ซ่อนแถบโฟลเดอร์ทั้งแถบ (ทุกขนาดจอ) ให้พื้นที่รายการกว้างขึ้น */
 body.side-hidden .side{display:none}
 .fbox{display:contents}
@@ -331,7 +337,7 @@ body.side-hidden .side{display:none}
   .mobrow{display:flex;gap:8px}
   .folderbtn{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%}
   .folderbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .sidetoggle{display:none}
+  .sideopen{display:none}
   .top{padding-top:env(safe-area-inset-top)}
   .topin{padding:8px 14px;gap:10px;flex-wrap:nowrap}
   .banner{flex:1 1 0;gap:10px}
