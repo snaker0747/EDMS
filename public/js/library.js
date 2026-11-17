@@ -89,7 +89,6 @@ function renderHead() {
   $('h1').textContent = f ? f.name : 'เอกสารทั้งหมด';
   $('crumb').textContent = f ? f.path : 'ทุกโฟลเดอร์';
   $('lede').textContent = `สวัสดี ${boot.me.display_name} · ${todayTh()}`;
-  $('folderBtnLbl').textContent = f ? f.name : 'ทุกโฟลเดอร์';
   const manage = !!(f && isAdmin && f.id !== boot.root_id);
   $('renFolder').hidden = !manage;
   $('delFolder').hidden = !manage;
@@ -333,7 +332,6 @@ function setSideHidden(hide, save = true) {
   $('sideOpen').hidden = !hide;
   $('sideOpen').setAttribute('aria-expanded', String(!hide));
   $('sideCollapse').setAttribute('aria-expanded', String(!hide));
-  $('folderBtn').setAttribute('aria-expanded', String(!hide));
   if (save) { try { localStorage.setItem(SIDE_KEY, hide ? '1' : '0'); } catch { /* ไม่เป็นไร */ } }
 }
 { let hid = false; try { hid = localStorage.getItem(SIDE_KEY) === '1'; } catch { /* ใช้ค่าเริ่มต้น */ } setSideHidden(hid, false); }
@@ -341,7 +339,6 @@ $('sideCollapse').addEventListener('click', () => setSideHidden(true));
 $('sideOpen').addEventListener('click', () => setSideHidden(false));
 
 // ---------- มือถือ: ปุ่มโฟลเดอร์ซ่อน/แสดงแผนผัง + ปุ่มเปิดตัวกรอง ----------
-$('folderBtn').addEventListener('click', () => setSideHidden(!document.body.classList.contains('side-hidden')));
 $('filterBtn').addEventListener('click', () => {
   const open = $('toolbar').classList.toggle('open');
   $('filterBtn').setAttribute('aria-expanded', String(open));

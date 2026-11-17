@@ -294,9 +294,9 @@ dialog .acts{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 [data-plain]{box-shadow:none;background:transparent}
 
 /* ---------- แอปบนมือถือ/แท็บเล็ต (responsive) ---------- */
-.tabbar,.folderbtn,.mobrow,.filterbtn{display:none}
+.tabbar,.mobrow,.filterbtn{display:none}
 .side{position:relative}
-.side .cap{padding-right:52px}
+.side .cap{padding-right:52px;min-height:48px;box-sizing:border-box}
 .sidecollapse,.sideopen{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;cursor:pointer;flex:none;transition:background .15s,border-color .15s}
 .sidecollapse{position:absolute;top:12px;right:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff}
 .sidecollapse:hover{background:rgba(255,255,255,.18)}
@@ -335,9 +335,6 @@ body.side-hidden .side{display:none}
   .layout{flex-direction:column}
   .side{flex:none;max-width:none;max-height:40vh;overflow-y:auto;overscroll-behavior:contain;margin:12px 14px 0;border-radius:18px;padding:10px 8px 14px}
   .mobrow{display:flex;gap:8px}
-  .folderbtn{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%}
-  .folderbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .sideopen{display:none}
   .top{padding-top:env(safe-area-inset-top)}
   .topin{padding:8px 14px;gap:10px;flex-wrap:nowrap}
   .banner{flex:1 1 0;gap:10px}
@@ -357,8 +354,7 @@ body.side-hidden .side{display:none}
   .grid2{grid-template-columns:1fr}
   .vbars{gap:3px}.vb .vl{font-size:10.5px}.rb{display:none}
   .toolbar{padding:14px;gap:12px}
-  .filterbtn{display:inline-flex;align-items:center;gap:8px;flex:none}
-  .folderbtn{flex:1 1 0}
+  .filterbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1 1 auto}
   .card{padding:18px}
   .viewer iframe{height:70vh;min-height:360px}
   input[type=text],input[type=search],input[type=password],input[type=date],input[type=number],select,textarea{font-size:16px}
