@@ -2,11 +2,17 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14264A">
 <title>อัปโหลดเอกสาร | ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์ ส่วนการโยธา</title>
 <link rel="manifest" href="/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EDMS โยธา">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Thai:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
@@ -22,7 +28,7 @@
 <div class="cols">
 <section style="flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:14px">
 <div class="drop" id="drop"><svg class="icon" style="width:40px;height:40px;color:var(--blue)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>
-<div style="font-size:17px;font-weight:600">ลากไฟล์มาวางที่นี่</div>
+<div style="font-size:17px;font-weight:600" id="dropTitle">ลากไฟล์มาวางที่นี่</div>
 <div class="muted" style="font-size:14px">รองรับ PDF เป็นหลัก รวมถึงรูปภาพ Word Excel PowerPoint DWG · เลือกได้หลายไฟล์ · ไม่เกิน <span id="maxmb">40</span> MB ต่อไฟล์</div>
 <div class="row" style="justify-content:center;margin-top:6px"><button class="btn blue" id="pick" type="button">เลือกไฟล์จากเครื่อง</button><button class="btn" id="camBtn" type="button">ถ่ายจากกล้องมือถือ</button></div>
 <input id="file" type="file" multiple hidden accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.tif,.tiff,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.dwg,.dxf">
@@ -40,7 +46,7 @@
 <div id="formHost"></div>
 <div class="field"><label for="folder">โฟลเดอร์ปลายทาง <span class="req">*</span></label><div class="row" id="folderRow"></div></div>
 <label class="row" style="min-height:44px;gap:10px"><input type="checkbox" id="same" checked> ใช้รายละเอียดชุดนี้กับทุกไฟล์ที่เลือก (ชื่อเอกสารตั้งแยกรายไฟล์ได้)</label>
-<div class="row" style="justify-content:flex-end;border-top:1px solid var(--line2);padding-top:16px"><a class="btn" href="/">ยกเลิก</a><button class="btn primary" id="save" type="button" disabled>บันทึกเอกสาร</button></div>
+<div class="row stickybar" style="justify-content:flex-end;border-top:1px solid var(--line2);padding-top:16px"><a class="btn" href="/">ยกเลิก</a><button class="btn primary" id="save" type="button" disabled>บันทึกเอกสาร</button></div>
 </section></div></main>
 <script type="module" src="/js/upload.js"></script>
 </body>

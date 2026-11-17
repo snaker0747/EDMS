@@ -221,3 +221,6 @@ $('save').addEventListener('click', async () => {
 // เตือนก่อนปิดหน้าขณะอัปโหลด
 window.addEventListener('beforeunload', (e) => { if (busy) { e.preventDefault(); e.returnValue = ''; } });
 renderQueue();
+
+// จอสัมผัส (มือถือ/แท็บเล็ต) ลากวางไม่สะดวก: เปลี่ยนข้อความให้ตรงกับวิธีที่ใช้จริง
+if (matchMedia('(pointer: coarse)').matches) document.getElementById('dropTitle').textContent = 'เลือกไฟล์ หรือถ่ายภาพเอกสาร';

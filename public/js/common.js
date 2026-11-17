@@ -52,6 +52,7 @@ export const ICON = {
   chart: ['M4 20V10', 'M10 20V4', 'M16 20v-7', 'M22 20H2'],
   clock: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3 2'],
   drive: ['M4 15h16v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z', 'M4 15l3-9h10l3 9', 'M8 17.5h.01'],
+  users: ['M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1', 'M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z', 'M20 19v-1a3.5 3.5 0 0 0-2.5-3.3', 'M15.5 4.2a3.5 3.5 0 0 1 0 6.6'],
   edit: ['M4 20h4L19 9l-4-4L4 16z', 'M13.5 6.5l4 4'],
   trash: ['M4 7h16', 'M9 7V4h6v3', 'M6 7l1 13h10l1-13', 'M10 11v5', 'M14 11v5'],
   files: ['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z', 'M14 3v5h5'],
@@ -330,6 +331,36 @@ export function detailsForm(boot, initial = {}, { withTitle = false } = {}) {
   };
 }
 
+// ---------- แอป (PWA): ติดตั้งลงหน้าจอ + ใช้งานเมื่อเน็ตหลุด ----------
+let installEvt = null;
+addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installEvt = e;
+  document.dispatchEvent(new Event('edms:installable'));
+});
+addEventListener('appinstalled', () => { installEvt = null; document.dispatchEvent(new Event('edms:installable')); });
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+addEventListener('offline', () => toast('ไม่มีสัญญาณอินเทอร์เน็ต', true));
+addEventListener('online', () => toast('กลับมาเชื่อมต่อแล้ว'));
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+async function installApp() {
+  if (installEvt) {
+    installEvt.prompt();
+    await installEvt.userChoice.catch(() => {});
+    installEvt = null;
+    document.dispatchEvent(new Event('edms:installable'));
+  } else {
+    openDialog('ติดตั้งเป็นแอปบน iPhone / iPad', [
+      h('ol', { style: 'margin:0;padding-left:20px;line-height:1.9' },
+        h('li', { text: 'เปิดหน้านี้ด้วย Safari' }),
+        h('li', { text: 'แตะปุ่ม "แชร์" (ไอคอนสี่เหลี่ยมมีลูกศรชี้ขึ้น)' }),
+        h('li', { text: 'เลือก "เพิ่มลงในหน้าจอโฮม" แล้วแตะ "เพิ่ม"' })),
+    ], { okText: 'เข้าใจแล้ว', onOk: () => true });
+  }
+}
+
 // ---------- หัวเว็บ + แบนเนอร์ ----------
 export async function init(active, pageTitle) {
   document.title = `${pageTitle} | ${SYSTEM_NAME} ${UNIT_NAME}`;
@@ -339,13 +370,17 @@ export async function init(active, pageTitle) {
   const boot = await api('GET', '/api/bootstrap');
   const me = boot.me;
   const nav = [
-    ['dash', '/dashboard.html', 'แดชบอร์ด'],
-    ['docs', '/', 'เอกสาร'],
-    ['upload', '/upload.html', 'อัปโหลด'],
-    ['folders', '/folders.html', 'จัดการโฟลเดอร์'],
+    ['dash', '/dashboard.html', 'แดชบอร์ด', ICON.chart, 'แดชบอร์ด'],
+    ['docs', '/', 'เอกสาร', ICON.files, 'เอกสาร'],
+    ['upload', '/upload.html', 'อัปโหลด', ICON.upload, 'อัปโหลด'],
+    ['folders', '/folders.html', 'จัดการโฟลเดอร์', ICON.folder, 'โฟลเดอร์'],
   ];
-  if (me.role === 'admin') nav.push(['users', '/users.html', 'ผู้ใช้งาน']);
+  if (me.role === 'admin') nav.push(['users', '/users.html', 'ผู้ใช้งาน', ICON.users, 'ผู้ใช้']);
 
+  const installBtn = h('button', { type: 'button', text: 'ติดตั้งเป็นแอป', hidden: true, onclick: () => { menu.open = false; installApp(); } });
+  const syncInstall = () => { installBtn.hidden = isStandalone() || !(installEvt || isIOS()); };
+  document.addEventListener('edms:installable', syncInstall);
+  syncInstall();
   const pw = h('button', { type: 'button', text: 'เปลี่ยนรหัสผ่าน', onclick: () => changePasswordDialog() });
   const out = h('button', {
     type: 'button',
@@ -357,13 +392,17 @@ export async function init(active, pageTitle) {
   });
   const menu = h('details', { class: 'me' },
     h('summary', {}, h('div', { class: 'av', text: initials(me.display_name) }), h('div', { class: 'who' }, h('b', { text: me.display_name }), h('br'), me.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้ทั่วไป')),
-    h('div', { class: 'menu' }, pw, out)
+    h('div', { class: 'menu' }, installBtn, pw, out)
   );
   document.addEventListener('click', (e) => { if (!menu.contains(e.target)) menu.open = false; });
 
   const navEl = h('nav', { class: 'nav', 'aria-label': 'เมนูหลัก' }, nav.map(([k, href, label]) => h('a', { href, text: label, 'aria-current': k === active ? 'page' : false })));
   const top = h('header', { class: 'top' }, h('div', { class: 'topin' }, bannerEl(), navEl, menu));
   early.replaceWith(top);
+  // แถบเมนูล่าง (เฉพาะจอมือถือ): เอื้อมนิ้วโป้งถึง เหมือนแอปทั่วไป
+  document.querySelector('.tabbar')?.remove();
+  document.body.append(h('nav', { class: 'tabbar', 'aria-label': 'เมนูหลัก' }, nav.map(([k, href, , icon, short]) =>
+    h('a', { href, class: k === 'upload' ? 'tb-main' : '', 'aria-current': k === active ? 'page' : false }, svgIcon(icon, 22), h('span', { text: short })))));
   return boot;
 }
 

@@ -30,6 +30,7 @@ function renderTree() {
 }
 
 function select(id) {
+  setDrawer(false);
   current = id;
   shown = 100;
   history.replaceState(null, '', id ? `/?folder=${encodeURIComponent(id)}` : '/');
@@ -46,6 +47,7 @@ function renderHead() {
   const link = $('driveLink');
   link.hidden = !(f && isAdmin);
   if (f) link.href = driveFolderUrl(f.id);
+  $('folderBtnLbl').textContent = f ? f.name : 'ทุกโฟลเดอร์';
   const manage = !!(f && isAdmin && f.id !== boot.root_id);
   $('renFolder').hidden = !manage;
   $('delFolder').hidden = !manage;
@@ -201,7 +203,7 @@ function render() {
   $('count').replaceChildren('พบ ', h('b', { text: String(list.length) }), ' รายการ');
   const q = $('q').value;
   const t = $('tbl');
-  t.replaceChildren(h('div', { class: 'tr head' }, ...['ชื่อเอกสาร', 'เลขที่', 'ประเภท', 'ขนาด', 'ผู้อัปโหลด', 'วันที่อัปโหลด', ''].map((x) => h('div', { text: x }))));
+  t.replaceChildren(h('div', { class: 'tr head' }, ...['ชื่อเอกสาร', 'เลขที่', 'ประเภท', 'ขนาด', 'ผู้อัปโหลด', 'วันที่อัปโหลด', ''].map((x, i) => h('div', { class: ['', 'c-no', 'c-type', 'c-size', 'c-by', 'c-date', 'c-act'][i], text: x }))));
   if (!list.length) t.append(emptyState());
   for (const d of list.slice(0, shown)) {
     t.append(
@@ -277,3 +279,25 @@ async function checkUpdates() {
 }
 setInterval(checkUpdates, 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdates(); });
+
+// ---------- มือถือ/แท็บเล็ต: ลิ้นชักโฟลเดอร์ + ปุ่มเปิดตัวกรอง ----------
+function setDrawer(open) {
+  document.body.classList.toggle('drawer-open', open);
+  $('scrim').hidden = !open;
+}
+$('folderBtn').addEventListener('click', () => setDrawer(true));
+$('scrim').addEventListener('click', () => setDrawer(false));
+$('sideClose').addEventListener('click', () => setDrawer(false));
+addEventListener('keydown', (e) => { if (e.key === 'Escape') setDrawer(false); });
+addEventListener('resize', () => { if (innerWidth > 1100) setDrawer(false); });
+$('filterBtn').addEventListener('click', () => {
+  const open = $('toolbar').classList.toggle('open');
+  $('filterBtn').setAttribute('aria-expanded', String(open));
+});
+function updateFilterBadge() {
+  const n = ['f-year', 'f-by'].filter((id) => $(id).value).length + ($('f-sort').value !== 'new' ? 1 : 0) + ($('sub').checked ? 0 : 1);
+  $('filterBadge').hidden = !n;
+  $('filterBadge').textContent = String(n);
+}
+for (const id of ['f-year', 'f-by', 'f-sort', 'sub']) $(id).addEventListener('change', updateFilterBadge);
+updateFilterBadge();

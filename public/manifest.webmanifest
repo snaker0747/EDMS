@@ -1,10 +1,27 @@
 {
+  "id": "/",
   "name": "ระบบบริหารจัดการเอกสารอิเล็กทรอนิกส์ ส่วนการโยธา",
-  "short_name": "EDMS ส่วนการโยธา",
-  "start_url": "/",
+  "short_name": "EDMS โยธา",
+  "description": "จัดเก็บ ค้นหา และอัปโหลดเอกสารของส่วนการโยธา สำนักช่าง เทศบาลนครระยอง",
+  "start_url": "/dashboard.html?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#F6F7FB",
   "theme_color": "#14264A",
   "lang": "th",
-  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+  "dir": "ltr",
+  "categories": ["productivity", "business"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "อัปโหลดเอกสาร", "short_name": "อัปโหลด", "url": "/upload.html", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "ค้นหาเอกสาร", "short_name": "เอกสาร", "url": "/", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "แดชบอร์ด", "short_name": "แดชบอร์ด", "url": "/dashboard.html", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
 }
