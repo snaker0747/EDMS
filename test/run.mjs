@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { installMockGoogle } from './mock-google.mjs';
+import { createD1 } from './d1-mock.mjs';
 import worker from '../src/index.js';
 
 const mock = installMockGoogle();
@@ -10,6 +11,7 @@ const env = {
   GOOGLE_CLIENT_ID: 'x', GOOGLE_CLIENT_SECRET: 'y', GOOGLE_REFRESH_TOKEN: 'z',
   SESSION_SECRET: 'test-secret-test-secret-1234567890',
   SETUP_KEY: 'setup-key-123',
+  DB: createD1(),
   ASSETS: { fetch: async () => new Response('static') },
 };
 const ctx = { waitUntil: (p) => pending.push(p) };
@@ -249,14 +251,57 @@ assert.equal(r.data.documents_added, 1);
 r = await call('POST', '/api/admin/sync', { body: {} });
 assert.equal(r.data.documents_added, 0);
 
-step('แคชข้อมูล: อ่านซ้ำใช้แคช, หลังเขียนต้องอ่านใหม่ (แม้ไปตก Worker ตัวอื่นก็อ่านใหม่ด้วยคุกกี้ edms_w)');
-await call('GET', '/api/bootstrap');
-const hit = await call('GET', '/api/documents');
-assert.match(hit.headers.get('server-timing'), /snap;desc="hit"/);
-jar.set('edms_w', String(Date.now() + 5000));
-const fut = await call('GET', '/api/documents');
-jar.delete('edms_w');
-assert.match(fut.headers.get('server-timing'), /snap;desc="miss"/);
+step('ซิงก์สองทาง: แก้ในเว็บ → ชีตเปลี่ยนตาม');
+const titleCol = 1; // คอลัมน์ "ชื่อเอกสาร" ในชีต
+const sheetRow = (id) => mock.sheets.get(sheetId).tabs.get('เอกสาร').rows.find((x) => x[0] === id);
+ok(await call('PATCH', `/api/documents/${doc.id}`, { body: { title: 'ชื่อใหม่จากเว็บ' } }));
+assert.equal(sheetRow(doc.id)[titleCol], 'ชื่อใหม่จากเว็บ');
+
+step('ซิงก์สองทาง: แก้ในชีต (AppSheet) → เว็บเห็นเมื่อซิงก์');
+const v0 = (await call('GET', '/api/data-version')).data.data_version;
+sheetRow(doc.id)[titleCol] = 'ชื่อที่แก้ใน AppSheet';
+r = await call('POST', '/api/admin/sync-sheet', { body: {} });
+ok(r);
+assert.equal(r.data.inbound, 1);
+assert.equal((await call('GET', `/api/documents/${doc.id}`)).data.document.title, 'ชื่อที่แก้ใน AppSheet');
+assert.ok((await call('GET', '/api/data-version')).data.data_version > v0);
+r = await call('POST', '/api/admin/sync-sheet', { body: {} });
+assert.equal(r.data.inbound + r.data.outbound, 0, 'ซิงก์ซ้ำต้องไม่มีอะไรเปลี่ยน');
+
+step('ซิงก์สองทาง: แก้พร้อมกันทั้งสองฝั่ง → เว็บชนะ และชีตถูกเขียนทับ');
+await env.DB.prepare("UPDATE docs SET title = 'แก้ในเว็บ', _d = 1, _v = _v + 1 WHERE id = ?").bind(doc.id).run();
+sheetRow(doc.id)[titleCol] = 'แก้ในชีตพร้อมกัน';
+ok(await call('POST', '/api/admin/sync-sheet', { body: {} }));
+assert.equal((await call('GET', `/api/documents/${doc.id}`)).data.document.title, 'แก้ในเว็บ');
+assert.equal(sheetRow(doc.id)[titleCol], 'แก้ในเว็บ');
+
+step('ซิงก์สองทาง: แถวใหม่ในชีต → เข้าเว็บ / ลบแถวในชีต → หายจากเว็บ / ช่องที่ขาดถูกเติมหัวตาราง');
+const docsTab = mock.sheets.get(sheetId).tabs.get('เอกสาร');
+const before = (await call('GET', '/api/documents')).data.documents.length;
+const newRow = docsTab.rows[0].map(() => '');
+newRow[0] = 'APPSHEET_ROW_1'; newRow[1] = 'เพิ่มจาก AppSheet'; newRow[6] = letters.id; newRow[17] = 'active'; newRow[15] = new Date().toISOString();
+docsTab.rows.push(newRow);
+ok(await call('POST', '/api/admin/sync-sheet', { body: {} }));
+let list = (await call('GET', '/api/documents')).data.documents;
+assert.equal(list.length, before + 1);
+assert.ok(list.some((d) => d.id === 'APPSHEET_ROW_1' && d.title === 'เพิ่มจาก AppSheet'));
+docsTab.rows.splice(docsTab.rows.findIndex((x) => x[0] === 'APPSHEET_ROW_1'), 1);
+ok(await call('POST', '/api/admin/sync-sheet', { body: {} }));
+list = (await call('GET', '/api/documents')).data.documents;
+assert.equal(list.length, before);
+
+step('ซิงก์สองทาง: แถวใหม่จากเว็บ (โฟลเดอร์/ประวัติ) ไปอยู่ในชีต');
+assert.ok(mock.sheets.get(sheetId).tabs.get('ประวัติ').rows.length > 3);
+assert.ok(mock.sheets.get(sheetId).tabs.get('โฟลเดอร์').rows.some((x) => x[1] === letters.name));
+
+step('ย้ายมาใช้ D1: ฐานข้อมูลใหม่ว่างเปล่า → นำเข้าข้อมูลเดิมจากชีตอัตโนมัติ และเข้าสู่ระบบได้');
+const env2 = { ...env, DB: createD1() };
+const w2 = async (method, path, body, cookie) => worker.fetch(new Request(BASE + path, { method, headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: body ? JSON.stringify(body) : undefined }), env2, ctx);
+const l2 = await w2('POST', '/api/login', { username: 'admin', password: 'Passw0rd!x' });
+assert.equal(l2.status, 200);
+const ck2 = l2.headers.getSetCookie()[0].split(';')[0];
+const d2 = await (await w2('GET', '/api/documents', null, ck2)).json();
+assert.equal(d2.documents.length, before);
 
 step('ออกจากระบบ');
 ok(await call('POST', '/api/logout', { body: {} }));

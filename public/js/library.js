@@ -232,3 +232,28 @@ renderFilters();
 renderTree();
 renderHead();
 render();
+
+// ตรวจเป็นระยะว่ามีข้อมูลใหม่ไหม (ผู้ใช้อื่นอัปโหลด หรือมีการแก้ไขจาก AppSheet/Google Sheet) แล้วรีเฟรชรายการให้เอง
+let seenVersion = boot.data_version;
+let checking = false;
+async function checkUpdates() {
+  if (checking || document.hidden) return;
+  checking = true;
+  try {
+    const { data_version } = await api('GET', '/api/data-version');
+    if (data_version === seenVersion) return;
+    seenVersion = data_version;
+    const [b, d] = await Promise.all([api('GET', '/api/bootstrap'), api('GET', '/api/documents')]);
+    folders = b.folders;
+    boot.settings = b.settings;
+    docs = d.documents;
+    if (current && !folders.some((f) => f.id === current)) current = '';
+    renderFilters();
+    renderTree();
+    renderHead();
+    render();
+    toast('อัปเดตรายการเอกสารล่าสุดแล้ว');
+  } catch { /* ลองใหม่รอบหน้า */ } finally { checking = false; }
+}
+setInterval(checkUpdates, 20000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdates(); });

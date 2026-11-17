@@ -11,6 +11,12 @@ binding = "ASSETS"
 # ให้ /api/* ผ่าน Worker ก่อนเสมอ ส่วนหน้าเว็บอื่น ๆ เสิร์ฟจาก public/
 run_worker_first = ["/api/*"]
 
+# ฐานข้อมูล D1: เว็บอ่าน/เขียนที่นี่ (เร็ว) แล้วซิงก์สองทางกับ Google Sheet ให้อัตโนมัติ
+[[d1_databases]]
+binding = "DB"
+database_name = "edms-db"
+database_id = "5a97d683-95bd-43dd-8b03-40ed08a6f95e"
+
 [vars]
 # โฟลเดอร์หลักใน Google Drive: เอกสารส่วนการโยธา สำนักช่าง
 ROOT_FOLDER_ID = "1s3V8fGcXYqBYNw5Xrg2mmaWbe5JVlhDa"

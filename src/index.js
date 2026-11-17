@@ -2,6 +2,7 @@
 import { HttpError, json } from './util.js';
 import { readSession } from './auth.js';
 import { makeCtx, findUser, isActive, getSettings } from './db.js';
+import { ensureReady, runSync, syncState, backgroundSyncIfStale, syncAfterWrite } from './sync.js';
 import * as Docs from './routes/documents.js';
 import * as Folders from './routes/folders.js';
 import * as Users from './routes/users.js';
@@ -21,8 +22,20 @@ add('POST', '/api/login', 'public', Users.login);
 add('POST', '/api/logout', 'public', Users.logout);
 
 add('GET', '/api/bootstrap', 'user', async (c) => {
-  const [settings, folders] = await Promise.all([getSettings(c), Folders.folderPayload(c)]);
-  return json({ me: Users.me(c.user), settings, ...folders });
+  const [settings, folders, state] = await Promise.all([getSettings(c), Folders.folderPayload(c), syncState(c)]);
+  backgroundSyncIfStale(c, state);
+  return json({ me: Users.me(c.user), settings, ...folders, data_version: state.data_version });
+});
+// หน้าเว็บถามเป็นระยะว่ามีข้อมูลใหม่ไหม (เช่น มีคนแก้ใน AppSheet หรือผู้ใช้อื่นอัปโหลด)
+add('GET', '/api/data-version', 'user', async (c) => {
+  const state = await syncState(c);
+  backgroundSyncIfStale(c, state);
+  return json({ data_version: state.data_version });
+});
+add('GET', '/api/admin/sync-status', 'admin', async (c) => json(await syncState(c)));
+add('POST', '/api/admin/sync-sheet', 'admin', async (c) => {
+  const r = await runSync(c.env);
+  return json(r.skipped ? { busy: true } : r);
 });
 add('POST', '/api/me/password', 'user', Users.changePassword);
 
@@ -77,21 +90,20 @@ export default {
       if (!route) throw new HttpError(methodMismatch ? 405 : 404, methodMismatch ? 'ไม่รองรับวิธีเรียกนี้' : 'ไม่พบหน้าที่ขอ');
 
       const c = makeCtx(env, ctx);
-      c.writeTs = Number(/(?:^|;\s*)edms_w=(\d+)/.exec(request.headers.get('cookie') || '')?.[1]) || 0;
       const t0 = Date.now();
+      const username = route.access !== 'public' ? await readSession(env, request) : null;
+      if (route.access !== 'public' && !username) throw new HttpError(401, 'กรุณาเข้าสู่ระบบ');
+      if (path !== '/api/health') await ensureReady(c, { lenient: path === '/api/setup' });
       if (route.access !== 'public') {
-        const username = await readSession(env, request);
         const row = username ? await findUser(c, username) : null;
         if (!row || !isActive(row)) throw new HttpError(401, 'กรุณาเข้าสู่ระบบ');
         c.user = { username: row.username, display_name: row.display_name, role: row.role === 'admin' ? 'admin' : 'user' };
         if (route.access === 'admin' && c.user.role !== 'admin') throw new HttpError(403, 'ต้องเป็นผู้ดูแลระบบเท่านั้น');
       }
       const res = await route.handler(c, params, request);
-      // บอกว่าคำขอนี้ใช้เวลาเท่าไรและใช้ข้อมูลจากแคชหรือไม่ (ดูได้ใน DevTools > Network > Timing)
+      if (c.dirty) syncAfterWrite(c); // ส่งสิ่งที่แก้ในเว็บไปที่ชีตเบื้องหลัง
       const out = new Response(res.body, res);
-      out.headers.append('server-timing', `app;dur=${Date.now() - t0}, snap;desc="${c.snapMiss ? 'miss' : 'hit'}"`);
-      // มีการเขียนข้อมูล: ให้ผู้ใช้คนนี้อ่านข้อมูลใหม่ทันทีในคำขอถัดไป
-      if (c.wrote) out.headers.append('set-cookie', `edms_w=${c.wrote}; Path=/; Max-Age=60; HttpOnly; Secure; SameSite=Lax`);
+      out.headers.append('server-timing', `app;dur=${Date.now() - t0}`);
       return out;
     } catch (e) {
       if (e instanceof HttpError) return json({ error: e.message }, e.status);

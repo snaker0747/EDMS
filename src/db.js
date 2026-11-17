@@ -73,7 +73,7 @@ export const SCHEMA = {
 
 export const DEFAULT_DOC_TYPES = ['หนังสือรับ', 'หนังสือส่ง', 'แบบแปลน', 'ประมาณราคา', 'สัญญา', 'รายงาน'];
 
-function colLetter(n) {
+export function colLetter(n) {
   // n เริ่มที่ 1
   let s = '';
   while (n > 0) {
@@ -84,96 +84,69 @@ function colLetter(n) {
   return s;
 }
 
-// ---------- ตัวช่วยระดับคำขอ ----------
-// c = { env, ctx, cache: Map, user }
-export function makeCtx(env, ctx) {
-  return { env, ctx, cache: new Map(), user: null };
+// ---------- ฐานข้อมูล D1 (อ่านเขียนที่นี่ เร็ว) + ซิงก์ไป/กลับ Google Sheet (ดู sync.js) ----------
+// คอลัมน์ _h = แฮชของแถวตอนซิงก์กับชีตครั้งล่าสุด, _d = 1 เมื่อแก้ในเว็บและยังไม่ได้ส่งไปชีต, _v = เลขเวอร์ชันของแถว
+export const PK = { docs: 'id', folders: 'id', settings: 'key', users: 'username' };
+export const SYNC_KEYS = ['docs', 'folders', 'settings', 'users'];
+const q = (s) => `"${s}"`;
+
+export function ddl() {
+  const out = [];
+  for (const [key, t] of Object.entries(SCHEMA)) {
+    const cols = t.cols.map(([k]) => (PK[key] === k ? `${q(k)} TEXT PRIMARY KEY` : `${q(k)} TEXT NOT NULL DEFAULT ''`));
+    const lead = key === 'history' ? ['_id INTEGER PRIMARY KEY AUTOINCREMENT'] : [];
+    out.push(`CREATE TABLE IF NOT EXISTS ${q(key)} (${[...lead, ...cols, "_h TEXT NOT NULL DEFAULT ''", '_d INTEGER NOT NULL DEFAULT 0', '_v INTEGER NOT NULL DEFAULT 0'].join(', ')})`);
+  }
+  out.push('CREATE INDEX IF NOT EXISTS idx_docs_folder ON docs (folder_id)');
+  out.push('CREATE INDEX IF NOT EXISTS idx_docs_status ON docs (status)');
+  out.push('CREATE INDEX IF NOT EXISTS idx_history_target ON history (target_id)');
+  out.push('CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL DEFAULT \'\')');
+  for (const [k, v] of [['data_version', '0'], ['lock_until', '0'], ['last_sync_at', '0'], ['sync_pending', '0']]) {
+    out.push(`INSERT OR IGNORE INTO meta (k, v) VALUES ('${k}', '${v}')`);
+  }
+  return out;
 }
+
+// ---------- ตัวช่วยระดับคำขอ ----------
+// c = { env, ctx, cache: Map, user, pending: [], dirty }
+export function makeCtx(env, ctx) {
+  return { env, ctx, cache: new Map(), user: null, pending: [], dirty: false };
+}
+
+export async function getMeta(c, k) {
+  const r = await c.env.DB.prepare('SELECT v FROM meta WHERE k = ?').bind(k).first();
+  return r ? r.v : null;
+}
+export const setMeta = (c, k, v) =>
+  c.env.DB.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').bind(k, String(v)).run();
 
 let sheetIdCache = null;
-
-// แคชตารางหลัก (เอกสาร/โฟลเดอร์/ตั้งค่า/ผู้ใช้) ไว้ในหน่วยความจำของ Worker สั้น ๆ
-// อ่านทั้ง 4 แท็บด้วยคำขอเดียว แทนที่จะอ่านทีละแท็บทุกครั้งที่เปิดหน้า
-// เมื่อมีการเขียนข้อมูล จะล้างแคชทันที และตั้งคุกกี้ edms_w ให้ผู้เขียนอ่านข้อมูลใหม่เสมอแม้ไปตกที่ Worker ตัวอื่น
-const SNAP_KEYS = ['docs', 'folders', 'settings', 'users'];
-const SNAP_TTL = 15_000;
-let gen = 0;
-let snap = { tables: null, at: 0, p: null, pStart: 0 };
-
-function invalidate() {
-  gen++;
-  snap = { tables: null, at: 0, p: null, pStart: 0 };
-}
-
-function markWrite(c, key) {
-  if (!SNAP_KEYS.includes(key)) return;
-  c.wrote = Date.now();
-  invalidate();
-}
-
 export function resetCaches() {
   sheetIdCache = null;
-  invalidate();
-}
-
-function parseTable(key, values) {
-  const table = SCHEMA[key];
-  const header = values[0] || [];
-  const idx = headerMap(table, header);
-  const rows = [];
-  for (let i = 1; i < values.length; i++) {
-    const raw = values[i] || [];
-    if (!raw.some((v) => String(v ?? '').trim() !== '')) continue;
-    const obj = { _row: i + 1, _raw: raw };
-    for (const [k] of table.cols) obj[k] = idx[k] >= 0 ? String(raw[idx[k]] ?? '') : '';
-    rows.push(obj);
-  }
-  return { rows, header, idx };
-}
-
-async function getSnapshot(c) {
-  const need = c.writeTs || 0; // ข้อมูลต้องโหลดหลังการเขียนล่าสุดของผู้ใช้คนนี้
-  if (snap.tables && Date.now() - snap.at < SNAP_TTL && snap.at >= need) return snap.tables;
-  c.snapMiss = true;
-  if (snap.p && snap.pStart >= need) return snap.p;
-  const g = gen;
-  const start = Date.now();
-  const p = (async () => {
-    const sheetId = await getSheetId(c);
-    const res = await G.sheetsBatchGet(c.env, sheetId, SNAP_KEYS.map((k) => `'${SCHEMA[k].title}'`));
-    const tables = {};
-    SNAP_KEYS.forEach((k, i) => (tables[k] = parseTable(k, res.valueRanges?.[i]?.values || [])));
-    if (g === gen) {
-      snap.tables = tables;
-      snap.at = start;
-    }
-    return tables;
-  })();
-  snap.p = p;
-  snap.pStart = start;
-  p.then(
-    () => { if (snap.p === p) snap.p = null; },
-    () => { if (snap.p === p) snap.p = null; }
-  );
-  return p;
 }
 
 export async function getSheetId(c, { create = false } = {}) {
   const { env } = c;
   if (env.SHEET_ID) return env.SHEET_ID;
   if (sheetIdCache) return sheetIdCache;
-  const q = `name='${SHEET_NAME}' and '${env.ROOT_FOLDER_ID}' in parents and mimeType='${G.SHEET_MIME}' and trashed=false`;
-  const found = await G.driveList(env, q);
+  const saved = await getMeta(c, 'sheet_id').catch(() => null);
+  if (saved) {
+    sheetIdCache = saved;
+    return saved;
+  }
+  const q1 = `name='${SHEET_NAME}' and '${env.ROOT_FOLDER_ID}' in parents and mimeType='${G.SHEET_MIME}' and trashed=false`;
+  const found = await G.driveList(env, q1);
   if (found.length) {
     sheetIdCache = found[0].id;
-    return sheetIdCache;
+  } else {
+    if (!create) throw new HttpError(503, 'ระบบยังไม่ได้ตั้งค่าเริ่มต้น (ผู้ดูแลต้องเรียก /api/setup ก่อน)');
+    const created = await G.sheetsCreate(env, SHEET_NAME);
+    // ย้ายชีตจากหน้าแรกของ Drive เข้าไปไว้ในโฟลเดอร์หลัก
+    const cur = await G.driveGet(env, created.spreadsheetId, 'id,parents');
+    await G.drivePatch(env, created.spreadsheetId, {}, { addParents: env.ROOT_FOLDER_ID, removeParents: (cur.parents || []).join(',') || undefined });
+    sheetIdCache = created.spreadsheetId;
   }
-  if (!create) throw new HttpError(503, 'ระบบยังไม่ได้ตั้งค่าเริ่มต้น (ผู้ดูแลต้องเรียก /api/setup ก่อน)');
-  const created = await G.sheetsCreate(env, SHEET_NAME);
-  // ย้ายชีตจากหน้าแรกของ Drive เข้าไปไว้ในโฟลเดอร์หลัก
-  const cur = await G.driveGet(env, created.spreadsheetId, 'id,parents');
-  await G.drivePatch(env, created.spreadsheetId, {}, { addParents: env.ROOT_FOLDER_ID, removeParents: (cur.parents || []).join(',') || undefined });
-  sheetIdCache = created.spreadsheetId;
+  await setMeta(c, 'sheet_id', sheetIdCache).catch(() => {});
   return sheetIdCache;
 }
 
@@ -206,96 +179,61 @@ export async function ensureSchema(c, sheetId) {
   if (def) {
     await G.sheetsBatch(c.env, sheetId, [{ deleteSheet: { sheetId: def.properties.sheetId } }]).catch(() => {});
   }
-  invalidate();
 }
 
-// ---------- อ่าน/เขียนตาราง ----------
-function headerMap(table, headerRow) {
-  const idx = {};
-  for (const [key, label] of table.cols) idx[key] = headerRow.indexOf(label);
-  return idx;
-}
-
-export async function readTable(c, key) {
-  if (c.cache.has(key)) return c.cache.get(key);
-  let out;
-  if (SNAP_KEYS.includes(key)) {
-    out = (await getSnapshot(c))[key];
-  } else {
-    const table = SCHEMA[key];
-    const sheetId = await getSheetId(c);
-    const res = await G.sheetsGet(c.env, sheetId, `'${table.title}'`);
-    out = parseTable(key, res.values || []);
-  }
-  c.cache.set(key, out);
-  return out;
-}
-
-// อ่านเฉพาะแถวหัวตาราง (เร็วกว่าอ่านทั้งตาราง ใช้ตอนเพิ่ม/แก้แถว)
-async function getHeader(c, key) {
-  const ck = `header:${key}`;
-  if (c.cache.has(ck)) return c.cache.get(ck);
-  const table = SCHEMA[key];
-  const known = snap.tables?.[key]; // หัวตารางแทบไม่เปลี่ยน ใช้จากแคชได้เลยเพื่อลดการเรียก
-  if (known) {
-    const out = { header: known.header, idx: known.idx };
-    c.cache.set(ck, out);
-    return out;
-  }
-  const sheetId = await getSheetId(c);
-  const res = await G.sheetsGet(c.env, sheetId, `'${table.title}'!1:1`);
-  const header = res.values?.[0] || [];
-  const out = { header, idx: headerMap(table, header) };
-  c.cache.set(ck, out);
-  return out;
-}
+// ---------- อ่าน/เขียนตาราง (D1) ----------
+const colsOf = (key) => SCHEMA[key].cols.map(([k]) => k);
+const BUMP = "UPDATE meta SET v = CAST(v AS INTEGER) + 1 WHERE k = 'data_version'";
 
 export async function listRows(c, key) {
-  return (await readTable(c, key)).rows;
+  if (c.cache.has(key)) return c.cache.get(key);
+  const { results } = await c.env.DB.prepare(`SELECT * FROM ${q(key)}${key === 'history' ? ' ORDER BY _id' : ''}`).all();
+  c.cache.set(key, results);
+  return results;
 }
 
-function buildRaw(table, header, idx, obj, base = []) {
-  const width = Math.max(header.length, ...Object.values(idx).map((i) => i + 1), base.length);
-  const arr = Array.from({ length: width }, (_, i) => (base[i] !== undefined ? base[i] : ''));
-  for (const [k] of table.cols) if (idx[k] >= 0 && obj[k] !== undefined) arr[idx[k]] = obj[k] ?? '';
-  return arr;
+function insertStmt(c, key, obj, h = '', d = 1) {
+  const cols = colsOf(key);
+  return c.env.DB.prepare(`INSERT INTO ${q(key)} (${[...cols.map(q), '_h', '_d', '_v'].join(', ')}) VALUES (${[...cols.map(() => '?'), '?', '?', '?'].join(', ')})`).bind(
+    ...cols.map((k) => String(obj[k] ?? '')),
+    h,
+    d,
+    1
+  );
 }
 
 export async function appendRow(c, key, obj) {
-  const table = SCHEMA[key];
-  const { header, idx } = await getHeader(c, key);
-  const arr = buildRaw(table, header, idx, obj);
-  const sheetId = await getSheetId(c);
-  await G.sheetsAppend(c.env, sheetId, `'${table.title}'!A1`, [arr]);
+  const stmts = [insertStmt(c, key, obj, '', key === 'history' ? 0 : 1)];
+  if (key !== 'history') stmts.push(c.env.DB.prepare(BUMP));
+  await c.env.DB.batch(stmts);
   c.cache.delete(key);
-  markWrite(c, key);
+  c.dirty = true;
   return obj;
 }
 
 // เพิ่มหลายแถวในคำขอเดียว (ใช้ตอนซิงก์จาก Drive)
 export async function appendRows(c, key, objs) {
   if (!objs.length) return;
-  const table = SCHEMA[key];
-  const { header, idx } = await getHeader(c, key);
-  const sheetId = await getSheetId(c);
-  const arrs = objs.map((o) => buildRaw(table, header, idx, o));
-  for (let i = 0; i < arrs.length; i += 500) {
-    await G.sheetsAppend(c.env, sheetId, `'${table.title}'!A1`, arrs.slice(i, i + 500));
+  for (let i = 0; i < objs.length; i += 40) {
+    await c.env.DB.batch(objs.slice(i, i + 40).map((o) => insertStmt(c, key, o)));
   }
+  await c.env.DB.prepare(BUMP).run();
   c.cache.delete(key);
-  markWrite(c, key);
+  c.dirty = true;
 }
 
 export async function updateRow(c, key, row, patch) {
-  const table = SCHEMA[key];
-  const { header, idx } = await getHeader(c, key);
-  const merged = { ...row, ...patch };
-  const arr = buildRaw(table, header, idx, merged, row._raw);
-  const sheetId = await getSheetId(c);
-  await G.sheetsUpdate(c.env, sheetId, `'${table.title}'!A${row._row}:${colLetter(arr.length)}${row._row}`, [arr]);
+  const pk = PK[key];
+  const keys = Object.keys(patch).filter((k) => colsOf(key).includes(k) && k !== pk);
+  if (keys.length) {
+    await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE ${q(key)} SET ${keys.map((k) => `${q(k)} = ?`).join(', ')}, _d = 1, _v = _v + 1 WHERE ${q(pk)} = ?`).bind(...keys.map((k) => String(patch[k] ?? '')), row[pk]),
+      c.env.DB.prepare(BUMP),
+    ]);
+  }
   c.cache.delete(key);
-  markWrite(c, key);
-  return merged;
+  c.dirty = true;
+  return { ...row, ...patch };
 }
 
 // ---------- ผู้ใช้ ----------
@@ -359,6 +297,7 @@ export function logHistory(c, action, targetId, targetName, detail = '') {
     target_name: targetName || '',
     detail,
   }).catch((e) => console.error('history failed', e));
+  c.pending.push(p);
   c.ctx?.waitUntil?.(p);
   return p;
 }

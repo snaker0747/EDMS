@@ -12,6 +12,7 @@ import {
   DEFAULT_DOC_TYPES,
   logHistory,
 } from '../db.js';
+import { runSync } from '../sync.js';
 import { hashPassword, passwordProblem } from '../auth.js';
 
 // นำโฟลเดอร์และไฟล์ที่มีอยู่ใน Google Drive เข้ามาในตาราง (ไฟล์ที่ยังไม่มีรายละเอียดจะเว้นว่างไว้ให้กรอกภายหลัง)
@@ -92,6 +93,7 @@ export async function setup(c, _p, request) {
 
   const sheetId = await getSheetId(c, { create: true });
   await ensureSchema(c, sheetId);
+  await runSync(c.env, { init: true }); // นำข้อมูลที่มีอยู่ในชีตเข้า D1 ก่อน (เรียกซ้ำได้)
   c.cache.clear();
 
   const settings = await listRows(c, 'settings');

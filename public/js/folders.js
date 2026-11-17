@@ -78,6 +78,16 @@ function remove(f) {
 }
 
 if (isAdmin) {
+  $('syncSheet').hidden = false;
+  $('syncSheet').addEventListener('click', async () => {
+    $('syncSheet').disabled = true;
+    try {
+      const r = await api('POST', '/api/admin/sync-sheet', {});
+      if (r.busy) { toast('กำลังซิงก์อยู่ ลองใหม่อีกสักครู่'); return; }
+      await reload();
+      toast(`ซิงก์กับชีตแล้ว: รับจากชีต ${r.inbound} ส่งไปชีต ${r.outbound} รายการ${r.warning ? ' — ' + r.warning : ''}`);
+    } catch (e) { toast(e.message, true); } finally { $('syncSheet').disabled = false; }
+  });
   $('sync').hidden = false;
   $('sync').addEventListener('click', async () => {
     $('sync').disabled = true;

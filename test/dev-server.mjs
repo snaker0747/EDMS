@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installMockGoogle } from './mock-google.mjs';
+import { createD1 } from './d1-mock.mjs';
 import worker from '../src/index.js';
 
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -21,6 +22,7 @@ const env = {
   ROOT_FOLDER_ID: 'ROOT', SHEET_ID: '', MAX_UPLOAD_MB: '40',
   GOOGLE_CLIENT_ID: 'x', GOOGLE_CLIENT_SECRET: 'y', GOOGLE_REFRESH_TOKEN: 'z',
   SESSION_SECRET: 'dev-secret-dev-secret-1234567890', SETUP_KEY: 'dev-setup',
+  DB: createD1(),
   ASSETS: {
     async fetch(req) {
       let p = new URL(req.url).pathname;

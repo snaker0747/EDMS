@@ -112,6 +112,21 @@ export function installMockGoogle() {
         }
         return J({});
       }
+      if (parts[3] === 'values:batchUpdate') {
+        for (const d of JSON.parse(bodyText).data) {
+          const { title, rest } = parseRange(d.range);
+          const tab = sh.tabs.get(title);
+          if (!tab) return J({ error: { message: `Unable to parse range: ${d.range}` } }, 400);
+          const m = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(rest);
+          const r0 = Number(m[2]) - 1; const c0 = colNum(m[1]) - 1;
+          d.values.forEach((vals, i) => {
+            const row = tab.rows[r0 + i] || (tab.rows[r0 + i] = []);
+            for (let k = 0; k < c0; k++) if (row[k] === undefined) row[k] = '';
+            vals.forEach((v, j) => (row[c0 + j] = String(v)));
+          });
+        }
+        return J({});
+      }
       if (parts[3] === 'values:batchGet') {
         const vr = u.searchParams.getAll('ranges').map((r) => {
           const tab = sh.tabs.get(parseRange(r).title);

@@ -201,6 +201,13 @@ export const sheetsBatchGet = (env, id, ranges) =>
     `${SHEETS}/${id}/values:batchGet?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS&${ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join('&')}`
   );
 
+export const sheetsBatchUpdateValues = (env, id, data) =>
+  gjson(env, `${SHEETS}/${id}/values:batchUpdate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'RAW', data: data.map((d) => ({ range: d.range, majorDimension: 'ROWS', values: d.values })) }),
+  });
+
 export const sheetsUpdate = (env, id, range, values) =>
   gjson(env, `${SHEETS}/${id}/values/${encodeURIComponent(range)}?valueInputOption=RAW`, {
     method: 'PUT',
