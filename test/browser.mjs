@@ -404,6 +404,41 @@ await page.click('dialog button[type=submit]');
 await page.waitForSelector('dialog', { state: 'detached' });
 console.log('after folder delete h1:', await page.textContent('#h1'), '| in tree:', await page.locator('#tree .fbtn', { hasText: 'โฟลเดอร์ชื่อใหม่' }).count());
 
+// ---- ลากทั้งโฟลเดอร์ลงหน้าอัปโหลด ----
+{
+  await page.goto(url + '/upload.html');
+  await page.waitForSelector('#formHost select');
+  console.log('drop zone mentions folder:', (await page.textContent('#dropTitle')).includes('โฟลเดอร์'), '| pick-folder button:', await page.locator('#pickDir').isVisible());
+  await page.evaluate(() => {
+    const pdf = (n) => ({ isFile: true, isDirectory: false, name: n, file: (ok) => ok(new File([new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52, 10, 49])], n, { type: 'application/pdf' })) });
+    const bad = (n) => ({ isFile: true, isDirectory: false, name: n, file: (ok) => ok(new File([new Uint8Array([1, 2, 3])], n)) });
+    // readEntries คืนทีละ 2 รายการ เหมือนเบราว์เซอร์จริงที่แบ่งเป็นชุด
+    const dir = (name, kids) => ({ isFile: false, isDirectory: true, name, createReader() { let i = 0; return { readEntries: (ok) => { const b = kids.slice(i, i + 2); i += 2; ok(b); } }; } });
+    const top = dir('19-11-69 เอกสารที่หลวง', [pdf('a.pdf'), pdf('b.pdf'), bad('x.exe'), pdf('Thumbs.db'), dir('ย่อย 1', [pdf('c.pdf'), dir('ลึกลงไป', [pdf('d.pdf')])])]);
+    const fake = { files: [], items: [{ kind: 'file', webkitGetAsEntry: () => top }] };
+    const ev = new Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'dataTransfer', { value: fake });
+    document.getElementById('drop').dispatchEvent(ev);
+  });
+  await page.waitForFunction(() => document.querySelectorAll('#queue .qitem').length === 4);
+  console.log('dropped folder -> 4 pdf in queue (junk/exe skipped):', await page.locator('#queue .qitem').count() === 4, '| keep-tree option shown:', await page.locator('#keepRow').isVisible());
+  console.log('queue shows path:', (await page.locator('#queue .qitem .sub').last().textContent()).includes('ย่อย 1 / ลึกลงไป'));
+  await shot(page, '23-upload-folder');
+  await page.selectOption('#formHost select >> nth=0', 'หนังสือส่ง');
+  await page.fill('#formHost input[type=date]', '2026-11-10');
+  { const req = page.locator('#formHost .field:has(.req) input[type=text]'); for (let i = 0; i < await req.count(); i++) if (!(await req.nth(i).inputValue())) await req.nth(i).fill('ทดสอบ'); }
+  await page.click('#save');
+  await page.waitForURL((u) => /\/\?folder=/.test(u.toString()), { timeout: 20000 });
+  const tree = await page.evaluate(async () => {
+    const b = await (await fetch('/api/bootstrap')).json();
+    const root = b.folders.find((f) => f.name === '19-11-69 เอกสารที่หลวง');
+    const kid = root && b.folders.find((f) => f.parent_id === root.id && f.name === 'ย่อย 1');
+    const deep = kid && b.folders.find((f) => f.parent_id === kid.id && f.name === 'ลึกลงไป');
+    return { root: root?.doc_count, kid: kid?.doc_count, deep: deep?.doc_count, dupes: b.folders.filter((f) => f.name === '19-11-69 เอกสารที่หลวง').length };
+  });
+  console.log('folder structure created with docs:', JSON.stringify(tree), '| ok:', tree.root === 2 && tree.kid === 1 && tree.deep === 1 && tree.dupes === 1);
+}
+
 console.log('\nปัญหาในคอนโซล:', problems.length ? '\n' + problems.join('\n') : 'ไม่มี');
 await browser.close();
 server.close();

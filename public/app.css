@@ -202,6 +202,7 @@ mark{background:#FFE8A3;color:inherit;border-radius:4px;padding:0 1px}
 .drop:hover{border-color:var(--accent)}
 .drop svg{transition:transform .3s var(--ease)}
 .drop.over{border-color:var(--accent);background:var(--brand-soft);transform:scale(1.01);box-shadow:0 0 0 5px rgba(69,115,245,.14)}
+.drop.reading{opacity:.6;pointer-events:none}
 .drop.over svg{transform:translateY(-4px)}
 .qitem{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--sh1);animation:rise .25s var(--ease)}
 .qitem .top2{display:flex;align-items:center;gap:12px}

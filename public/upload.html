@@ -28,10 +28,10 @@
 <div class="cols">
 <section style="flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:14px">
 <div class="drop" id="drop"><svg class="icon" style="width:40px;height:40px;color:var(--blue)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>
-<div style="font-size:17px;font-weight:600" id="dropTitle">ลากไฟล์มาวางที่นี่</div>
+<div style="font-size:17px;font-weight:600" id="dropTitle">ลากไฟล์หรือโฟลเดอร์มาวางที่นี่</div>
 <div class="muted" style="font-size:14px">รองรับ PDF เป็นหลัก รวมถึงรูปภาพ Word Excel PowerPoint DWG · เลือกได้หลายไฟล์ · ไม่เกิน <span id="maxmb">40</span> MB ต่อไฟล์</div>
-<div class="row" style="justify-content:center;margin-top:6px"><button class="btn blue" id="pick" type="button">เลือกไฟล์จากเครื่อง</button><button class="btn" id="camBtn" type="button">ถ่ายจากกล้องมือถือ</button></div>
-<input id="file" type="file" multiple hidden accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.tif,.tiff,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.dwg,.dxf">
+<div class="row" style="justify-content:center;margin-top:6px"><button class="btn blue" id="pick" type="button">เลือกไฟล์จากเครื่อง</button><button class="btn" id="pickDir" type="button">เลือกทั้งโฟลเดอร์</button><button class="btn" id="camBtn" type="button">ถ่ายจากกล้องมือถือ</button></div>
+<input id="dirIn" type="file" webkitdirectory hidden><input id="file" type="file" multiple hidden accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.tif,.tiff,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.dwg,.dxf">
 </div>
 <section class="card" id="cam" hidden><h2>ถ่ายเอกสารด้วยกล้อง</h2>
 <div class="muted" style="font-size:14px">ถ่ายทีละหน้า แล้วรวมเป็นไฟล์ PDF ไฟล์เดียว</div>
@@ -40,6 +40,7 @@
 <input id="shotIn" type="file" accept="image/*" capture="environment" hidden><input id="galIn" type="file" accept="image/*" multiple hidden>
 </section>
 <h2 style="font-size:14px;color:var(--ink2)">ไฟล์ที่เลือก</h2>
+<label class="row" id="keepRow" style="min-height:44px;gap:10px;flex-wrap:nowrap;align-items:flex-start" hidden><input type="checkbox" id="keepTree" checked style="margin-top:3px"><span style="flex:1;min-width:0">สร้างโฟลเดอร์ตามโครงสร้างที่ลากมา (ถ้าไม่เลือก จะใส่ทุกไฟล์ลงโฟลเดอร์ปลายทางเดียว)</span></label>
 <div id="queue" style="display:flex;flex-direction:column;gap:10px"><div class="muted">ยังไม่ได้เลือกไฟล์</div></div>
 </section>
 <section class="card" style="flex:1 1 480px;min-width:0;padding:22px 24px;gap:16px"><h2 style="font-size:18px">รายละเอียดเอกสาร</h2>

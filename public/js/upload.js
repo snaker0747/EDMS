@@ -43,17 +43,48 @@ renderFolderSelect(folders.some((f) => f.id === wanted) ? wanted : folders.find(
 const queue = []; // { file, title, status, form, el }
 let busy = false;
 
-function addFiles(files) {
-  for (const file of files) {
+const MAX_BATCH = 300; // จำนวนไฟล์สูงสุดที่รับต่อครั้ง กันลากโฟลเดอร์ใหญ่เกินไป
+const JUNK = /^(thumbs\.db|desktop\.ini|\.ds_store|~\$.*|\..*)$/i; // ไฟล์ขยะของระบบ ข้ามเงียบ ๆ
+// items: File หรือ { file, dirs } (dirs = ชื่อโฟลเดอร์ที่ไฟล์อยู่ข้างใน ถ้าลากมาทั้งโฟลเดอร์)
+function addFiles(items) {
+  const skipped = { type: [], big: [], empty: [], over: 0 };
+  let added = 0;
+  for (const it of items) {
+    const file = it.file || it;
+    const dirs = it.dirs || [];
+    if (JUNK.test(file.name)) continue;
     const ext = (/\.([A-Za-z0-9]+)$/.exec(file.name)?.[1] || '').toLowerCase();
-    if (!OK_EXT.has(ext)) { toast(`ข้ามไฟล์ "${file.name}" (ไม่รองรับชนิดไฟล์นี้)`, true); continue; }
-    if (file.size > MAX_MB * 1048576) { toast(`ข้ามไฟล์ "${file.name}" (ใหญ่เกิน ${MAX_MB} MB)`, true); continue; }
-    if (!file.size) { toast(`ข้ามไฟล์ "${file.name}" (ไฟล์ว่าง)`, true); continue; }
-    queue.push({ file, title: stripExt(file.name), status: 'ready', form: null });
+    if (!OK_EXT.has(ext)) { skipped.type.push(file.name); continue; }
+    if (file.size > MAX_MB * 1048576) { skipped.big.push(file.name); continue; }
+    if (!file.size) { skipped.empty.push(file.name); continue; }
+    if (queue.length >= MAX_BATCH) { skipped.over++; continue; }
+    queue.push({ file, dirs, title: stripExt(file.name), status: 'ready', form: null });
+    added++;
   }
+  const list = (a) => (a.length <= 2 ? a.map((n) => `"${n}"`).join(', ') : `${a.length} ไฟล์`);
+  if (skipped.type.length) toast(`ข้าม ${list(skipped.type)} (ไม่รองรับชนิดไฟล์นี้)`, true);
+  if (skipped.big.length) toast(`ข้าม ${list(skipped.big)} (ใหญ่เกิน ${MAX_MB} MB)`, true);
+  if (skipped.empty.length) toast(`ข้าม ${list(skipped.empty)} (ไฟล์ว่าง)`, true);
+  if (skipped.over) toast(`รับได้ครั้งละไม่เกิน ${MAX_BATCH} ไฟล์ ข้ามไป ${skipped.over} ไฟล์`, true);
+  if (items.some((it) => it.dirs?.length) && added) toast(`เพิ่ม ${added} ไฟล์จากโฟลเดอร์แล้ว`);
   renderQueue();
 }
 
+// อ่านโฟลเดอร์ที่ลากมาทั้งก้อน (รวมโฟลเดอร์ย่อย) ด้วย webkitGetAsEntry
+const readAll = (reader) => new Promise((resolve, reject) => {
+  const all = [];
+  const next = () => reader.readEntries((batch) => { if (!batch.length) resolve(all); else { all.push(...batch); next(); } }, reject);
+  next();
+});
+async function walk(entry, dirs, out) {
+  if (entry.isFile) {
+    const file = await new Promise((res, rej) => entry.file(res, rej));
+    out.push({ file, dirs });
+  } else if (entry.isDirectory) {
+    const kids = await readAll(entry.createReader());
+    for (const k of kids) await walk(k, [...dirs, entry.name], out);
+  }
+}
 function renderQueue() {
   const box = $('queue');
   box.replaceChildren();
@@ -84,10 +115,12 @@ function renderQueue() {
     q.el = item;
     box.append(item);
   });
+  $('keepRow').hidden = !queue.some((q) => q.dirs?.length);
+  $('keepTree').disabled = busy;
   $('save').disabled = busy || !queue.some((q) => q.status !== 'done');
 }
 function statusText(q) {
-  const size = fmtSize(q.file.size);
+  const size = fmtSize(q.file.size) + (q.dirs?.length ? ` · 📁 ${q.dirs.join(' / ')}` : '');
   if (q.status === 'done') return `✔ อัปโหลดแล้ว · ${size}`;
   if (q.status === 'sending') return `กำลังอัปโหลด… · ${size}`;
   if (q.status === 'error') return `✖ ${q.error}`;
@@ -107,10 +140,27 @@ $('same').addEventListener('change', renderQueue);
 // ---------- เลือกไฟล์ / ลากวาง ----------
 $('pick').addEventListener('click', () => $('file').click());
 $('file').addEventListener('change', (e) => { addFiles([...e.target.files]); e.target.value = ''; });
+$('pickDir').addEventListener('click', () => $('dirIn').click());
+$('dirIn').addEventListener('change', (e) => {
+  // webkitRelativePath = "ชื่อโฟลเดอร์/โฟลเดอร์ย่อย/ไฟล์.pdf"
+  addFiles([...e.target.files].map((file) => ({ file, dirs: (file.webkitRelativePath || '').split('/').slice(0, -1) })));
+  e.target.value = '';
+});
 const drop = $('drop');
 ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', (e) => addFiles([...e.dataTransfer.files]));
+drop.addEventListener('drop', async (e) => {
+  const dt = e.dataTransfer; // ต้องดึง entry ทันที ก่อนมี await ไม่เช่นนั้นข้อมูลที่ลากจะหาย
+  const entries = [...(dt.items || [])].map((i) => (i.kind === 'file' && i.webkitGetAsEntry ? i.webkitGetAsEntry() : null));
+  if (!entries.some(Boolean)) { addFiles([...dt.files]); return; }
+  drop.classList.add('reading');
+  try {
+    const out = [];
+    for (const en of entries) if (en) await walk(en, [], out);
+    addFiles(out);
+  } catch { toast('อ่านโฟลเดอร์ไม่สำเร็จ ลองเลือกไฟล์ด้วยปุ่มแทน', true); }
+  drop.classList.remove('reading');
+});
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
 
@@ -176,6 +226,25 @@ function sendOne(q, meta) {
   });
 }
 
+// หาโฟลเดอร์ย่อยตามชื่อ ถ้าไม่มีก็สร้างใหม่ ทีละระดับ (ใช้ซ้ำถ้ามีชื่อเดียวกันอยู่แล้ว)
+async function ensurePath(baseId, dirs, made) {
+  let parent = baseId;
+  for (const name of dirs) {
+    const key = `${parent}/${name}`;
+    if (!made.has(key)) {
+      const lower = name.trim().toLowerCase();
+      let f = folders.find((x) => x.parent_id === parent && x.name.toLowerCase() === lower);
+      if (!f) {
+        ({ folder: f } = await api('POST', '/api/folders', { name, parent_id: parent }));
+        folders = [...folders, f];
+      }
+      made.set(key, f.id);
+    }
+    parent = made.get(key);
+  }
+  return parent;
+}
+
 $('save').addEventListener('click', async () => {
   const same = $('same').checked;
   const todo = queue.filter((q) => q.status !== 'done');
@@ -192,10 +261,13 @@ $('save').addEventListener('click', async () => {
   busy = true;
   renderQueue();
   let okCount = 0, lastDoc = null;
+  const keep = $('keepTree') && $('keepTree').checked;
+  const made = new Map(); // "idพ่อ/ชื่อ/ชื่อ" -> id โฟลเดอร์ที่สร้างหรือพบแล้ว
   for (const { q, meta } of jobs) {
     setStatus(q, 'sending');
     q.el?.querySelector('.bar-p')?.removeAttribute('hidden');
     try {
+      if (keep && q.dirs?.length) meta.folder_id = await ensurePath(meta.folder_id, q.dirs, made);
       lastDoc = await sendOne(q, meta);
       setStatus(q, 'done');
       okCount++;
