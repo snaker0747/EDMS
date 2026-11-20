@@ -294,5 +294,28 @@ $('save').addEventListener('click', async () => {
 window.addEventListener('beforeunload', (e) => { if (busy) { e.preventDefault(); e.returnValue = ''; } });
 renderQueue();
 
+// ไฟล์ที่แชร์เข้ามาจากแอปอื่น (เช่น LINE → แชร์ → EDMS โยธา) พักอยู่ในแคชโดย service worker: หยิบมาใส่คิวแล้วล้างทิ้ง
+(async () => {
+  if (!('caches' in window)) return;
+  try {
+    if (!(await caches.has('edms-share'))) return;
+    const cache = await caches.open('edms-share');
+    const keys = await cache.keys();
+    const got = [];
+    for (const k of keys) {
+      const res = await cache.match(k);
+      if (!res) continue;
+      let name = 'ไฟล์ที่แชร์';
+      try { name = decodeURIComponent(res.headers.get('x-filename') || name); } catch { /* ใช้ชื่อสำรอง */ }
+      got.push(new File([await res.blob()], name, { type: res.headers.get('content-type') || '' }));
+    }
+    for (const k of keys) await cache.delete(k);
+    if (qs('shared') === 'err') toast('รับไฟล์ที่แชร์ไม่สำเร็จ ลองเลือกไฟล์ด้วยปุ่มแทน', true);
+    if (got.length) { addFiles(got); toast(`รับไฟล์ที่แชร์เข้ามา ${got.length} ไฟล์`); }
+    else if (qs('shared') !== null && qs('shared') !== 'err') toast('ไม่พบไฟล์ที่แชร์เข้ามา (แชร์ได้เฉพาะไฟล์ ไม่รองรับข้อความหรือลิงก์)', true);
+    if (qs('shared') !== null) history.replaceState(null, '', '/upload.html' + (qs('folder') ? `?folder=${encodeURIComponent(qs('folder'))}` : ''));
+  } catch { /* ไม่เป็นไร */ }
+})();
+
 // จอสัมผัส (มือถือ/แท็บเล็ต) ลากวางไม่สะดวก: เปลี่ยนข้อความให้ตรงกับวิธีที่ใช้จริง
 if (matchMedia('(pointer: coarse)').matches) document.getElementById('dropTitle').textContent = 'เลือกไฟล์ หรือถ่ายภาพเอกสาร';

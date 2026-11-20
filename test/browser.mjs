@@ -439,6 +439,33 @@ console.log('after folder delete h1:', await page.textContent('#h1'), '| in tree
   console.log('folder structure created with docs:', JSON.stringify(tree), '| ok:', tree.root === 2 && tree.kid === 1 && tree.deep === 1 && tree.dupes === 1);
 }
 
+// ---- แชร์ไฟล์จากแอปอื่น (Web Share Target) → เข้าคิวหน้าอัปโหลด ----
+{
+  const man = await page.evaluate(async () => (await fetch('/manifest.webmanifest')).json());
+  console.log('manifest share_target:', man.share_target?.action, man.share_target?.method, man.share_target?.params?.files?.[0]?.name);
+  await page.goto(url + '/upload.html');
+  await page.waitForSelector('#formHost select');
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 8000 }).catch(() => {});
+  console.log('service worker controlling page:', await page.evaluate(() => !!navigator.serviceWorker.controller));
+  await page.evaluate(() => {
+    const form = document.createElement('form');
+    form.method = 'POST'; form.action = '/share-target'; form.enctype = 'multipart/form-data';
+    const dt = new DataTransfer();
+    const bytes = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52, 10, 49]);
+    dt.items.add(new File([bytes], 'ใบแจ้งซ่อมจาก LINE.pdf', { type: 'application/pdf' }));
+    dt.items.add(new File([bytes], 'รูปหน้างาน.pdf', { type: 'application/pdf' }));
+    const inp = document.createElement('input'); inp.type = 'file'; inp.name = 'files'; inp.files = dt.files;
+    form.append(inp); document.body.append(form); form.submit();
+  });
+  await page.waitForURL((u) => /upload\.html/.test(u.toString()) && !/shared=/.test(u.toString()) || /shared=2/.test(u.toString()), { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelectorAll('#queue .qitem').length === 2, null, { timeout: 8000 });
+  const titles = await page.locator('#queue .qitem input[type=text]').evaluateAll((els) => els.map((e) => e.value));
+  console.log('shared files in queue:', JSON.stringify(titles), '| url cleaned:', !/shared=/.test(page.url()));
+  await page.reload(); await page.waitForSelector('#formHost select');
+  console.log('share cache emptied after pickup (reload keeps queue empty):', (await page.locator('#queue .qitem').count()) === 0);
+}
+
 console.log('\nปัญหาในคอนโซล:', problems.length ? '\n' + problems.join('\n') : 'ไม่มี');
 await browser.close();
 server.close();
